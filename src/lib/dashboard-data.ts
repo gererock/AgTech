@@ -111,7 +111,7 @@ const integerFormatter = new Intl.NumberFormat("es-AR", {
 const fuelCostPerLiter = 1080;
 
 export async function getDashboardOverview(): Promise<DashboardOverview> {
-  if (!process.env.DATABASE_URL) {
+  if (process.env.DASHBOARD_DATA_SOURCE !== "database" || !process.env.DATABASE_URL) {
     return getDemoDashboardOverview();
   }
 
@@ -160,7 +160,8 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
         createdAt: log.createdAt.toISOString()
       }))
     });
-  } catch {
+  } catch (error) {
+    console.warn("Dashboard database read failed; falling back to demo data", error);
     return getDemoDashboardOverview();
   }
 }

@@ -3,10 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:create-local": "powershell -ExecutionPolicy Bypass -File scripts/setup-local-postgres.ps1",
+    "db:setup": "docker compose up -d db && prisma migrate dev && prisma db seed",
+    "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
   },
@@ -37,5 +46,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
   }
 }
