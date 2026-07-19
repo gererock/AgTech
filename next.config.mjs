@@ -1,5 +1,11 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants.js";
+
+/**
+ * @param {string} phase
+ * @returns {import('next').NextConfig}
+ */
+const createNextConfig = (phase) => ({
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {
@@ -19,6 +25,6 @@ const nextConfig = {
       }
     ];
   }
-};
+});
 
-export default nextConfig;
+export default createNextConfig;
