@@ -1,0 +1,34 @@
+# Agro Operativo
+
+MVP mobile-first para carga offline de viajes y partes diarios agropecuarios.
+
+## Incluye
+
+- Next.js App Router con TypeScript estricto.
+- PWA con `manifest.webmanifest`, service worker y cache de `/`, `/chofer` y `/maquinista`.
+- IndexedDB con Dexie para guardar `Trips` y `WorkOrders` con `synced: false`.
+- Sincronización automática al volver la conexión y botón manual de sync.
+- API routes `POST /api/trips/sync` y `POST /api/work-orders/sync`.
+- Prisma schema para PostgreSQL con IDs UUID aptos para generación en cliente.
+
+## Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+La app queda disponible en `http://127.0.0.1:3000`.
+
+## Base de datos
+
+1. Copiar `.env.example` a `.env`.
+2. Configurar `DATABASE_URL` con una base PostgreSQL.
+3. Ejecutar:
+
+```bash
+npm run prisma:migrate
+```
+
+Sin PostgreSQL configurado, los formularios siguen guardando en IndexedDB y quedarán pendientes de sincronizar.
+# AgTech
