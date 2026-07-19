@@ -75,7 +75,7 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-extrabold uppercase text-teal-700">Panel administrativo</p>
-                <h2 className="text-2xl font-black tracking-normal">Operacion sincronizada</h2>
+                <h2 className="text-2xl font-black tracking-normal">Operación sincronizada</h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={overview.source === "database" ? "teal" : "amber"}>
@@ -137,7 +137,7 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
               </Panel>
             </section>
 
-            <Panel title="Auditoria de sincronizacion" icon={<RefreshCw className="h-5 w-5" />}>
+            <Panel title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
               <SyncAudit rows={overview.syncAudit} />
             </Panel>
           </div>
