@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -24,6 +27,7 @@ import type {
   TripTableRow,
   WorkOrderTableRow
 } from "@/lib/dashboard-data";
+import { clearAuthSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 interface AdminDashboardProps {
@@ -45,6 +49,64 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
 });
 
 export function AdminDashboard({ overview }: AdminDashboardProps) {
+  const router = useRouter();
+  const [activeSection, setActiveSection] = useState("summary");
+  const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          router.replace("/login");
+          return;
+        }
+
+        const data = await response.json();
+        setProfile(data.user);
+      } catch (error) {
+        console.error(error);
+        router.replace("/login");
+      }
+    };
+
+    loadProfile();
+  }, [router]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      clearAuthSession();
+      router.replace("/login");
+    }
+  };
+
+  const handleSectionChange = (sectionId: string) => {
+    setActiveSection(sectionId);
+
+    if (typeof window !== "undefined") {
+      const target = document.getElementById(sectionId);
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY - 90;
+        window.scrollTo({ top, behavior: "smooth" });
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <div className="flex min-h-screen">
@@ -53,35 +115,104 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
             <p className="text-xs font-extrabold uppercase text-teal-700">Agro Operativo</p>
             <h1 className="mt-1 text-xl font-black">Backoffice</h1>
           </div>
-          <nav className="grid gap-1 p-3 text-sm font-bold text-slate-700">
-            <SidebarItem icon={<LayoutDashboard className="h-4 w-4" />} label="Resumen" active />
-            <SidebarItem icon={<Truck className="h-4 w-4" />} label="Viajes" />
-            <SidebarItem icon={<Tractor className="h-4 w-4" />} label="Maquinaria" />
-            <SidebarItem icon={<Users className="h-4 w-4" />} label="Clientes" />
-            <SidebarItem icon={<RefreshCw className="h-4 w-4" />} label="Auditoria sync" />
+          <nav className="grid gap-1 p-3 text-sm font-bold text-slate-700" aria-label="Secciones del panel">
+            <SidebarItem
+              icon={<LayoutDashboard className="h-4 w-4" />}
+              label="Resumen"
+              active={activeSection === "summary"}
+              onClick={() => handleSectionChange("summary")}
+            />
+            <SidebarItem
+              icon={<Truck className="h-4 w-4" />}
+              label="Viajes"
+              active={activeSection === "trips"}
+              onClick={() => handleSectionChange("trips")}
+            />
+            <SidebarItem
+              icon={<Tractor className="h-4 w-4" />}
+              label="Maquinaria"
+              active={activeSection === "machinery"}
+              onClick={() => handleSectionChange("machinery")}
+            />
+            <SidebarItem
+              icon={<Users className="h-4 w-4" />}
+              label="Clientes"
+              active={activeSection === "customers"}
+              onClick={() => handleSectionChange("customers")}
+            />
+            <SidebarItem
+              icon={<RefreshCw className="h-4 w-4" />}
+              label="Auditoria sync"
+              active={activeSection === "sync-audit"}
+              onClick={() => handleSectionChange("sync-audit")}
+            />
           </nav>
-          <div className="mt-auto border-t border-slate-200 p-4">
-            <Link
-              href="/"
-              className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-800 hover:bg-slate-50"
-            >
-              Modo campo
-            </Link>
-          </div>
         </aside>
 
-        <main className="min-w-0 flex-1">
+        <main id="summary" className="min-w-0 flex-1">
           <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:px-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-extrabold uppercase text-teal-700">Panel administrativo</p>
-                <h2 className="text-2xl font-black tracking-normal">Operación sincronizada</h2>
+                <h2 className="text-2xl font-black tracking-normal">
+                  {activeSection === "summary"
+                    ? "Operación sincronizada"
+                    : activeSection === "trips"
+                      ? "Viajes"
+                      : activeSection === "machinery"
+                        ? "Maquinaria"
+                        : activeSection === "customers"
+                          ? "Clientes"
+                          : "Auditoría de sincronización"}
+                </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={overview.source === "database" ? "teal" : "amber"}>
                   {overview.source === "database" ? "Datos reales" : "Datos demo"}
                 </Badge>
                 <Badge tone="slate">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
+                {profile ? (
+                  <div className="relative" ref={profileMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileMenuOpen((open) => !open)}
+                      className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-black text-white">
+                        {profile.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900">{profile.name}</p>
+                        <p className="truncate text-xs font-bold text-slate-600">{profile.email}</p>
+                      </div>
+                    </button>
+
+                    {isProfileMenuOpen ? (
+                      <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                        <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+                          <p className="font-black text-slate-900">{profile.name}</p>
+                          <p className="truncate text-slate-600">{profile.email}</p>
+                          <p className="mt-1 text-xs font-bold uppercase text-teal-700">{profile.role}</p>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                          >
+                            Cerrar sesión
+                          </button>
+                          <Link
+                            href="/"
+                            className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                          >
+                            Modo campo
+                          </Link>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           </header>
@@ -93,7 +224,7 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
               ))}
             </section>
 
-            <section className="grid gap-5 xl:grid-cols-[1fr_1.45fr]">
+            <section id="trips" className="grid gap-5 xl:grid-cols-[1fr_1.45fr]">
               <Panel title="Estado de viajes" icon={<Truck className="h-5 w-5" />}>
                 <div className="grid gap-4">
                   {overview.tripStatus.map((slice) => (
@@ -128,16 +259,16 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
                 />
               </Panel>
 
-              <Panel title="Maquinarias" icon={<Tractor className="h-5 w-5" />}>
+              <Panel id="machinery" title="Maquinarias" icon={<Tractor className="h-5 w-5" />}>
                 <AssetList rows={overview.assets} />
               </Panel>
 
-              <Panel title="Clientes" icon={<BarChart3 className="h-5 w-5" />}>
+              <Panel id="customers" title="Clientes" icon={<BarChart3 className="h-5 w-5" />}>
                 <CustomerReport rows={overview.customerReport} />
               </Panel>
             </section>
 
-            <Panel title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
+            <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
               <SyncAudit rows={overview.syncAudit} />
             </Panel>
           </div>
@@ -150,22 +281,26 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
 function SidebarItem({
   icon,
   label,
-  active = false
+  active = false,
+  onClick
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "flex h-10 items-center gap-3 rounded-md px-3",
+        "flex h-10 items-center gap-3 rounded-md px-3 text-left",
         active ? "bg-teal-700 text-white" : "hover:bg-slate-100"
       )}
     >
       {icon}
       <span>{label}</span>
-    </div>
+    </button>
   );
 }
 
@@ -194,9 +329,9 @@ function MetricCard({ metric }: { metric: DashboardMetric }) {
   );
 }
 
-function Panel({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function Panel({ id, title, icon, children }: { id?: string; title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white shadow-sm">
+    <section id={id} className="scroll-mt-24 rounded-md border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="text-teal-700">{icon}</div>
@@ -494,10 +629,13 @@ function formatDateTime(value: string) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-AR", {
+  const formatted = new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires"
   }).format(new Date(value));
+
+  return formatted.replace(/[\u00A0\u202F]/g, " ");
 }
