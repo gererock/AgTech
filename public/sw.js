@@ -2,8 +2,14 @@ const CACHE_NAME = "agro-operativo-v1";
 const APP_SHELL_ROUTES = ["/", "/chofer", "/maquinista", "/manifest.webmanifest", "/icon.svg"];
 const SYNC_TAG = "agro-offline-sync";
 const ASSET_EXTENSIONS = /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i;
+const IS_LOCAL_DEV = ["localhost", "127.0.0.1", "0.0.0.0"].includes(self.location.hostname);
 
 self.addEventListener("install", (event) => {
+  if (IS_LOCAL_DEV) {
+    event.waitUntil(clearAllCaches().then(() => self.skipWaiting()));
+    return;
+  }
+
   event.waitUntil(
     caches
       .open(CACHE_NAME)
@@ -13,6 +19,15 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  if (IS_LOCAL_DEV) {
+    event.waitUntil(
+      clearAllCaches()
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    );
+    return;
+  }
+
   event.waitUntil(
     caches
       .keys()
@@ -24,6 +39,10 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  if (IS_LOCAL_DEV) {
+    return;
+  }
+
   const { request } = event;
 
   if (request.method !== "GET") {
@@ -66,8 +85,10 @@ async function cacheFirst(request) {
   }
 
   const response = await fetch(request);
-  const cache = await caches.open(CACHE_NAME);
-  cache.put(request, response.clone());
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, response.clone());
+  }
   return response;
 }
 
@@ -76,7 +97,9 @@ async function networkFirst(request) {
 
   try {
     const response = await fetch(request);
-    cache.put(request, response.clone());
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
     return response;
   } catch (error) {
     const cached = await caches.match(request);
@@ -89,4 +112,9 @@ async function notifyClientsToSync() {
   clients.forEach((client) => {
     client.postMessage({ type: "SYNC_PENDING" });
   });
+}
+
+async function clearAllCaches() {
+  const keys = await caches.keys();
+  await Promise.all(keys.map((key) => caches.delete(key)));
 }

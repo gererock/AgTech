@@ -16,6 +16,11 @@ export function ServiceWorkerRegister() {
       return;
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      void cleanupDevelopmentServiceWorkers();
+      return;
+    }
+
     let registration: ServiceWorkerRegistration | null = null;
 
     const dispatchClientSync = () => {
@@ -72,4 +77,18 @@ export function ServiceWorkerRegister() {
   }, []);
 
   return null;
+}
+
+async function cleanupDevelopmentServiceWorkers() {
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+
+    if ("caches" in window) {
+      const cacheNames = await window.caches.keys();
+      await Promise.all(cacheNames.map((cacheName) => window.caches.delete(cacheName)));
+    }
+  } catch (error) {
+    console.warn("Development service worker cleanup failed", error);
+  }
 }

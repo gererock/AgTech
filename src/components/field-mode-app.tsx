@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { CheckCircle2, Fuel, Save, Tractor, Truck } from "lucide-react";
+import { CheckCircle2, Fuel, LayoutDashboard, Save, Tractor, Truck } from "lucide-react";
 import { OfflineStatusBanner } from "@/components/offline-status-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,8 +142,20 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
 
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 pt-5 sm:px-6">
         <header className="rounded-md border border-teal-100 bg-white p-4 shadow-field">
-          <p className="text-xs font-extrabold uppercase text-teal-800">Modo campo</p>
-          <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">Agro Operativo</h1>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold uppercase text-teal-800">Modo campo</p>
+              <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">Agro Operativo</h1>
+            </div>
+            <Link
+              href="/dashboard"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-800 shadow-sm hover:bg-slate-50"
+              aria-label="Abrir panel administrativo"
+              title="Panel administrativo"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+            </Link>
+          </div>
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
             Cargá viajes y partes diarios aunque no haya señal. La app sincroniza cuando vuelve la conexión.
           </p>
