@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DRIVER
+  MACHINE_OPERATOR
+}
+
+enum TripStatus {
+  PENDING
+  IN_TRANSIT
+  COMPLETED
+}
+
+enum SyncEntityType {
+  TRIP
+  WORK_ORDER
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String   @unique
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tripsAsDriver        Trip[]      @relation("TripDriver")
+  workOrdersAsOperator WorkOrder[] @relation("WorkOrderOperator")
+}
+
+model Trip {
+  id            String     @id @default(uuid()) @db.Uuid
+  truck         String?
+  licensePlate  String
+  driverId      String?    @db.Uuid
+  driver        User?      @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  driverName    String
+  origin        String     @default("Sin informar")
+  destination   String     @default("Sin informar")
+  product       String
+  estimatedKg   Int
+  loadedKg      Int?
+  destinationKg Int?
+  status        TripStatus @default(PENDING)
+  clientCreatedAt DateTime?
+  syncedAt      DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([driverId])
+  @@index([status])
+  @@index([updatedAt])
+}
+
+model WorkOrder {
+  id                String   @id @default(uuid()) @db.Uuid
+  machinery         String
+  operatorId        String?  @db.Uuid
+  operator          User?    @relation("WorkOrderOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+  operatorName      String
+  initialHourMeter  Float
+  finalHourMeter    Float
+  hectaresWorked    Float
+  fuelLiters        Float
+  plot              String   @default("Sin informar")
+  customer          String   @default("Sin informar")
+  clientCreatedAt   DateTime?
+  syncedAt          DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([operatorId])
+  @@index([updatedAt])
+}
+
+model SyncLog {
+  id         String         @id @default(uuid()) @db.Uuid
+  entityType SyncEntityType
+  entityId   String?        @db.Uuid
+  status     SyncStatus
+  message    String?
+  payload    Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

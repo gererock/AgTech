@@ -1,0 +1,33 @@
+{
+  "name": "Agro Operativo",
+  "short_name": "Agro",
+  "description": "Carga offline de viajes y partes diarios para equipos de campo.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nueva Carta de Porte",
+      "short_name": "Viaje",
+      "url": "/chofer",
+      "description": "Cargar un viaje desde el campo"
+    },
+    {
+      "name": "Nuevo Parte Diario",
+      "short_name": "Parte",
+      "url": "/maquinista",
+      "description": "Cargar maquinaria y labores"
+    }
+  ]
+}
