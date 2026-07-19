@@ -29,9 +29,11 @@ import type {
 } from "@/lib/dashboard-data";
 import { clearAuthSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { EntityManager } from "@/components/dashboard/entity-manager";
 
 interface AdminDashboardProps {
   overview: DashboardOverview;
+  initialView?: string;
 }
 
 const numberFormatter = new Intl.NumberFormat("es-AR", {
@@ -48,9 +50,9 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0
 });
 
-export function AdminDashboard({ overview }: AdminDashboardProps) {
+export function AdminDashboard({ overview, initialView = "summary" }: AdminDashboardProps) {
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState("summary");
+  const [activeSection, setActiveSection] = useState(initialView);
   const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -97,14 +99,6 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
 
   const handleSectionChange = (sectionId: string) => {
     setActiveSection(sectionId);
-
-    if (typeof window !== "undefined") {
-      const target = document.getElementById(sectionId);
-      if (target) {
-        const top = target.getBoundingClientRect().top + window.scrollY - 90;
-        window.scrollTo({ top, behavior: "smooth" });
-      }
-    }
   };
 
   return (
@@ -121,30 +115,35 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
               label="Resumen"
               active={activeSection === "summary"}
               onClick={() => handleSectionChange("summary")}
+              href="/dashboard?view=summary"
             />
             <SidebarItem
               icon={<Truck className="h-4 w-4" />}
               label="Viajes"
               active={activeSection === "trips"}
               onClick={() => handleSectionChange("trips")}
+              href="/dashboard?view=trips"
             />
             <SidebarItem
               icon={<Tractor className="h-4 w-4" />}
-              label="Maquinaria"
-              active={activeSection === "machinery"}
-              onClick={() => handleSectionChange("machinery")}
+              label="Partes"
+              active={activeSection === "work-orders"}
+              onClick={() => handleSectionChange("work-orders")}
+              href="/dashboard?view=work-orders"
             />
             <SidebarItem
               icon={<Users className="h-4 w-4" />}
-              label="Clientes"
-              active={activeSection === "customers"}
-              onClick={() => handleSectionChange("customers")}
+              label="Usuarios"
+              active={activeSection === "users"}
+              onClick={() => handleSectionChange("users")}
+              href="/dashboard?view=users"
             />
             <SidebarItem
               icon={<RefreshCw className="h-4 w-4" />}
               label="Auditoria sync"
               active={activeSection === "sync-audit"}
               onClick={() => handleSectionChange("sync-audit")}
+              href="/dashboard?view=sync-audit"
             />
           </nav>
         </aside>
@@ -159,10 +158,10 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
                     ? "Operación sincronizada"
                     : activeSection === "trips"
                       ? "Viajes"
-                      : activeSection === "machinery"
-                        ? "Maquinaria"
-                        : activeSection === "customers"
-                          ? "Clientes"
+                      : activeSection === "work-orders"
+                        ? "Partes diarios"
+                        : activeSection === "users"
+                          ? "Usuarios"
                           : "Auditoría de sincronización"}
                 </h2>
               </div>
@@ -218,59 +217,87 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
           </header>
 
           <div className="grid gap-5 px-4 py-5 lg:px-6">
-            <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {overview.metrics.map((metric) => (
-                <MetricCard key={metric.label} metric={metric} />
-              ))}
-            </section>
-
-            <section id="trips" className="grid gap-5 xl:grid-cols-[1fr_1.45fr]">
-              <Panel title="Estado de viajes" icon={<Truck className="h-5 w-5" />}>
-                <div className="grid gap-4">
-                  {overview.tripStatus.map((slice) => (
-                    <StatusBar key={slice.label} slice={slice} />
+            {activeSection === "summary" ? (
+              <>
+                <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {overview.metrics.map((metric) => (
+                    <MetricCard key={metric.label} metric={metric} />
                   ))}
-                </div>
-              </Panel>
+                </section>
 
-              <Panel title="Costo operativo por maquinaria" icon={<Fuel className="h-5 w-5" />}>
-                <FuelReport rows={overview.fuelReport} />
-              </Panel>
-            </section>
+                <section id="trips" className="grid gap-5 xl:grid-cols-[1fr_1.45fr]">
+                  <Panel title="Estado de viajes" icon={<Truck className="h-5 w-5" />}>
+                    <div className="grid gap-4">
+                      {overview.tripStatus.map((slice) => (
+                        <StatusBar key={slice.label} slice={slice} />
+                      ))}
+                    </div>
+                  </Panel>
 
-            <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
-              <Panel title="Viajes recientes" icon={<ClipboardList className="h-5 w-5" />}>
-                <TripsTable rows={overview.recentTrips} />
-              </Panel>
+                  <Panel title="Costo operativo por maquinaria" icon={<Fuel className="h-5 w-5" />}>
+                    <FuelReport rows={overview.fuelReport} />
+                  </Panel>
+                </section>
 
-              <Panel title="Partes diarios" icon={<Gauge className="h-5 w-5" />}>
-                <WorkOrdersTable rows={overview.recentWorkOrders} />
-              </Panel>
-            </section>
+                <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
+                  <Panel title="Viajes recientes" icon={<ClipboardList className="h-5 w-5" />}>
+                    <TripsTable rows={overview.recentTrips} />
+                  </Panel>
 
-            <section className="grid gap-5 xl:grid-cols-3">
-              <Panel title="Choferes" icon={<Users className="h-5 w-5" />}>
-                <SimpleList
-                  rows={overview.drivers.map((driver) => ({
-                    title: driver.name,
-                    detail: `${driver.trips} viajes registrados`,
-                    meta: driver.email
-                  }))}
-                />
-              </Panel>
+                  <Panel title="Partes diarios" icon={<Gauge className="h-5 w-5" />}>
+                    <WorkOrdersTable rows={overview.recentWorkOrders} />
+                  </Panel>
+                </section>
 
-              <Panel id="machinery" title="Maquinarias" icon={<Tractor className="h-5 w-5" />}>
-                <AssetList rows={overview.assets} />
-              </Panel>
+                <section className="grid gap-5 xl:grid-cols-3">
+                  <Panel title="Choferes" icon={<Users className="h-5 w-5" />}>
+                    <SimpleList
+                      rows={overview.drivers.map((driver) => ({
+                        title: driver.name,
+                        detail: `${driver.trips} viajes registrados`,
+                        meta: driver.email
+                      }))}
+                    />
+                  </Panel>
 
-              <Panel id="customers" title="Clientes" icon={<BarChart3 className="h-5 w-5" />}>
-                <CustomerReport rows={overview.customerReport} />
-              </Panel>
-            </section>
+                  <Panel id="machinery" title="Maquinarias" icon={<Tractor className="h-5 w-5" />}>
+                    <AssetList rows={overview.assets} />
+                  </Panel>
 
-            <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
-              <SyncAudit rows={overview.syncAudit} />
-            </Panel>
+                  <Panel id="customers" title="Clientes" icon={<BarChart3 className="h-5 w-5" />}>
+                    <CustomerReport rows={overview.customerReport} />
+                  </Panel>
+                </section>
+
+                <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
+                  <SyncAudit rows={overview.syncAudit} />
+                </Panel>
+              </>
+            ) : null}
+
+            {activeSection === "trips" ? (
+              <div id="trips" className="scroll-mt-24">
+                <EntityManager kind="trips" />
+              </div>
+            ) : null}
+
+            {activeSection === "work-orders" ? (
+              <div id="work-orders" className="scroll-mt-24">
+                <EntityManager kind="work-orders" />
+              </div>
+            ) : null}
+
+            {activeSection === "users" ? (
+              <div id="users" className="scroll-mt-24">
+                <EntityManager kind="users" />
+              </div>
+            ) : null}
+
+            {activeSection === "sync-audit" ? (
+              <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
+                <SyncAudit rows={overview.syncAudit} />
+              </Panel>
+            ) : null}
           </div>
         </main>
       </div>
@@ -282,16 +309,18 @@ function SidebarItem({
   icon,
   label,
   active = false,
-  onClick
+  onClick,
+  href
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
   onClick: () => void;
+  href: string;
 }) {
   return (
-    <button
-      type="button"
+    <Link
+      href={href}
       onClick={onClick}
       className={cn(
         "flex h-10 items-center gap-3 rounded-md px-3 text-left",
@@ -300,7 +329,7 @@ function SidebarItem({
     >
       {icon}
       <span>{label}</span>
-    </button>
+    </Link>
   );
 }
 

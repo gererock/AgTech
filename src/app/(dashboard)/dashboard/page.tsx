@@ -9,8 +9,9 @@ export const metadata: Metadata = {
   description: "Backoffice AgTech para viajes, partes diarios, costos operativos y auditoria de sincronizacion."
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams?: { view?: string } }) {
   const overview = await getDashboardOverview();
+  const view = searchParams?.view ?? "summary";
 
-  return <AdminDashboard overview={overview} />;
+  return <AdminDashboard overview={overview} initialView={view} />;
 }
