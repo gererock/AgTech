@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import crypto from "node:crypto";
 
 const prisma = new PrismaClient();
+
+function hashPassword(password) {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
 
 const now = new Date();
 
@@ -8,32 +13,9 @@ const users = [
   {
     id: "5dd80b28-5c82-4d4c-a3d7-30d653c3781f",
     name: "Admin Campo",
-    email: "admin@agro.local",
+    email: "admin@agtech.com",
+    passwordHash: hashPassword("agtech2025"),
     role: "ADMIN"
-  },
-  {
-    id: "ba5dd187-4f96-4472-a908-230d2012317b",
-    name: "Martin Rivas",
-    email: "martin@campo.local",
-    role: "DRIVER"
-  },
-  {
-    id: "4e044138-0669-4914-96aa-6ed5222a63dd",
-    name: "Laura Medina",
-    email: "laura@campo.local",
-    role: "DRIVER"
-  },
-  {
-    id: "1686ea78-359f-420d-81e1-8a2ad4460176",
-    name: "Nicolas Duarte",
-    email: "nicolas@campo.local",
-    role: "MACHINE_OPERATOR"
-  },
-  {
-    id: "42ef8310-aeaf-41a5-8315-9295bdb19533",
-    name: "Eva Molina",
-    email: "eva@campo.local",
-    role: "MACHINE_OPERATOR"
   }
 ];
 
