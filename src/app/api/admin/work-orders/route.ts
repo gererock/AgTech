@@ -50,6 +50,7 @@ export async function GET(request: Request) {
       finalHourMeter: true,
       hectaresWorked: true,
       fuelLiters: true,
+      fuelItemId: true,
       plot: true,
       customerId: true,
       customer: true,
@@ -80,34 +81,47 @@ export async function POST(request: Request) {
     );
   }
 
-  const workOrder = await prisma.workOrder.create({
-    data: {
-      machineryId: rawBody.machineryId || null,
-      machinery: parsed.data.machinery,
-      operatorId: parsed.data.operatorId || null,
-      operatorName: parsed.data.operatorName,
-      initialHourMeter: parsed.data.initialHourMeter,
-      finalHourMeter: parsed.data.finalHourMeter,
-      hectaresWorked: parsed.data.hectaresWorked,
-      fuelLiters: parsed.data.fuelLiters,
-      plot: parsed.data.plot || "Sin informar",
-      customerId: rawBody.customerId || null,
-      customer: parsed.data.customer || "Sin informar"
-    },
-    select: {
-      id: true,
-      machineryId: true,
-      machinery: true,
-      operatorName: true,
-      initialHourMeter: true,
-      finalHourMeter: true,
-      hectaresWorked: true,
-      fuelLiters: true,
-      plot: true,
-      customerId: true,
-      customer: true,
-      updatedAt: true
+  const workOrder = await prisma.$transaction(async (tx) => {
+    const createdWorkOrder = await tx.workOrder.create({
+      data: {
+        machineryId: rawBody.machineryId || null,
+        machinery: parsed.data.machinery,
+        operatorId: parsed.data.operatorId || null,
+        operatorName: parsed.data.operatorName,
+        initialHourMeter: parsed.data.initialHourMeter,
+        finalHourMeter: parsed.data.finalHourMeter,
+        hectaresWorked: parsed.data.hectaresWorked,
+        fuelLiters: parsed.data.fuelLiters,
+        fuelItemId: parsed.data.fuelItemId || null,
+        plot: parsed.data.plot || "Sin informar",
+        customerId: rawBody.customerId || null,
+        customer: parsed.data.customer || "Sin informar"
+      },
+      select: {
+        id: true,
+        machineryId: true,
+        machinery: true,
+        operatorName: true,
+        initialHourMeter: true,
+        finalHourMeter: true,
+        hectaresWorked: true,
+        fuelLiters: true,
+        fuelItemId: true,
+        plot: true,
+        customerId: true,
+        customer: true,
+        updatedAt: true
+      }
+    });
+
+    if (parsed.data.fuelItemId && parsed.data.fuelLiters > 0) {
+      await tx.inventoryItem.updateMany({
+        where: { id: parsed.data.fuelItemId, type: "FUEL" },
+        data: { quantity: { decrement: parsed.data.fuelLiters } }
+      });
     }
+
+    return createdWorkOrder;
   });
 
   return NextResponse.json({ ...workOrder, updatedAt: workOrder.updatedAt.toISOString() });

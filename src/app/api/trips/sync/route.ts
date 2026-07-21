@@ -32,40 +32,76 @@ export async function POST(request: Request) {
     const record = parsedRecord.data;
 
     try {
-      await prisma.trip.upsert({
-        where: { id: record.id },
-        create: {
-          id: record.id,
-          truck: record.truck || null,
-          licensePlate: record.licensePlate,
-          driverId: record.driverId || null,
-          driverName: record.driverName,
-          origin: record.origin || "Sin informar",
-          destination: record.destination || "Sin informar",
-          product: record.product,
-          estimatedKg: record.estimatedKg,
-          loadedKg: record.loadedKg ?? null,
-          destinationKg: record.destinationKg ?? null,
-          status: record.status,
-          clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
-          syncedAt: now
-        },
-        update: {
-          truck: record.truck || null,
-          licensePlate: record.licensePlate,
-          driverId: record.driverId || null,
-          driverName: record.driverName,
-          origin: record.origin || "Sin informar",
-          destination: record.destination || "Sin informar",
-          product: record.product,
-          estimatedKg: record.estimatedKg,
-          loadedKg: record.loadedKg ?? null,
-          destinationKg: record.destinationKg ?? null,
-          status: record.status,
-          clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
-          syncedAt: now
+      const existingTrip = await prisma.trip.findUnique({ where: { id: record.id }, select: { id: true } });
+      const isNewTrip = !existingTrip;
+
+      if (isNewTrip) {
+        const transactionOperations: Array<Prisma.PrismaPromise<unknown>> = [
+          prisma.trip.create({
+            data: {
+              id: record.id,
+              truck: record.truck || null,
+              licensePlate: record.licensePlate,
+              driverId: record.driverId || null,
+              driverName: record.driverName,
+              origin: record.origin || "Sin informar",
+              destination: record.destination || "Sin informar",
+              product: record.product,
+              estimatedKg: record.estimatedKg,
+              loadedKg: record.loadedKg ?? null,
+              destinationKg: record.destinationKg ?? null,
+              fuelLiters: record.fuelLiters ?? 0,
+              fuelItemId: record.fuelItemId || null,
+              agroItemId: record.agroItemId || null,
+              status: record.status,
+              clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
+              syncedAt: now
+            }
+          })
+        ];
+
+        if (record.fuelItemId && Number.isFinite(record.fuelLiters) && record.fuelLiters > 0) {
+          transactionOperations.push(
+            prisma.inventoryItem.updateMany({
+              where: { id: record.fuelItemId, type: "FUEL" },
+              data: { quantity: { decrement: record.fuelLiters } }
+            })
+          );
         }
-      });
+
+        if (record.agroItemId && Number.isFinite(record.estimatedKg) && record.estimatedKg > 0) {
+          transactionOperations.push(
+            prisma.inventoryItem.updateMany({
+              where: { id: record.agroItemId, type: "AGRO" },
+              data: { quantity: { decrement: record.estimatedKg } }
+            })
+          );
+        }
+
+        await prisma.$transaction(transactionOperations);
+      } else {
+        await prisma.trip.update({
+          where: { id: record.id },
+          data: {
+            truck: record.truck || null,
+            licensePlate: record.licensePlate,
+            driverId: record.driverId || null,
+            driverName: record.driverName,
+            origin: record.origin || "Sin informar",
+            destination: record.destination || "Sin informar",
+            product: record.product,
+            estimatedKg: record.estimatedKg,
+            loadedKg: record.loadedKg ?? null,
+            destinationKg: record.destinationKg ?? null,
+            fuelLiters: record.fuelLiters ?? 0,
+            fuelItemId: record.fuelItemId || null,
+            agroItemId: record.agroItemId || null,
+            status: record.status,
+            clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
+            syncedAt: now
+          }
+        });
+      }
 
       await prisma.syncLog.create({
         data: {

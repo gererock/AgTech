@@ -32,36 +32,97 @@ export async function POST(request: Request) {
     const record = parsedRecord.data;
 
     try {
-      await prisma.workOrder.upsert({
-        where: { id: record.id },
-        create: {
-          id: record.id,
-          machinery: record.machinery,
-          operatorId: record.operatorId || null,
-          operatorName: record.operatorName,
-          initialHourMeter: record.initialHourMeter,
-          finalHourMeter: record.finalHourMeter,
-          hectaresWorked: record.hectaresWorked,
-          fuelLiters: record.fuelLiters,
-          plot: record.plot || "Sin informar",
-          customer: record.customer || "Sin informar",
-          clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
-          syncedAt: now
-        },
-        update: {
-          machinery: record.machinery,
-          operatorId: record.operatorId || null,
-          operatorName: record.operatorName,
-          initialHourMeter: record.initialHourMeter,
-          finalHourMeter: record.finalHourMeter,
-          hectaresWorked: record.hectaresWorked,
-          fuelLiters: record.fuelLiters,
-          plot: record.plot || "Sin informar",
-          customer: record.customer || "Sin informar",
-          clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
-          syncedAt: now
+      const existingWorkOrder = await prisma.workOrder.findUnique({ where: { id: record.id }, select: { id: true } });
+      const isNewWorkOrder = !existingWorkOrder;
+
+      if (isNewWorkOrder) {
+        const transactionOperations: Array<Prisma.PrismaPromise<unknown>> = [
+          prisma.workOrder.create({
+            data: {
+              id: record.id,
+              machinery: record.machinery,
+              operatorId: record.operatorId || null,
+              operatorName: record.operatorName,
+              initialHourMeter: record.initialHourMeter,
+              finalHourMeter: record.finalHourMeter,
+              hectaresWorked: record.hectaresWorked,
+              fuelLiters: record.fuelLiters,
+              fuelItemId: record.fuelItemId || null,
+              plot: record.plot || "Sin informar",
+              customer: record.customer || "Sin informar",
+              clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
+              syncedAt: now
+            }
+          })
+        ];
+
+        if (record.fuelItemId && Number.isFinite(record.fuelLiters) && record.fuelLiters > 0) {
+          transactionOperations.push(
+            prisma.inventoryItem.updateMany({
+              where: { id: record.fuelItemId, type: "FUEL" },
+              data: { quantity: { decrement: record.fuelLiters } }
+            })
+          );
         }
-      });
+
+        if (record.chemicals?.length) {
+          transactionOperations.push(
+            prisma.workOrderChemical.createMany({
+              data: record.chemicals.map((chemical) => ({
+                workOrderId: record.id,
+                inventoryItemId: chemical.inventoryItemId || null,
+                product: chemical.product,
+                quantity: chemical.quantity,
+                unit: chemical.unit
+              }))
+            })
+          );
+
+          record.chemicals
+            .filter((chemical) => chemical.inventoryItemId && Number.isFinite(chemical.quantity) && chemical.quantity > 0)
+            .forEach((chemical) => {
+              transactionOperations.push(
+                prisma.inventoryItem.updateMany({
+                  where: { id: chemical.inventoryItemId || undefined, type: "CHEMICAL" },
+                  data: { quantity: { decrement: chemical.quantity } }
+                })
+              );
+            });
+        }
+
+        await prisma.$transaction(transactionOperations);
+      } else {
+        await prisma.workOrder.update({
+          where: { id: record.id },
+          data: {
+            machinery: record.machinery,
+            operatorId: record.operatorId || null,
+            operatorName: record.operatorName,
+            initialHourMeter: record.initialHourMeter,
+            finalHourMeter: record.finalHourMeter,
+            hectaresWorked: record.hectaresWorked,
+            fuelLiters: record.fuelLiters,
+            fuelItemId: record.fuelItemId || null,
+            plot: record.plot || "Sin informar",
+            customer: record.customer || "Sin informar",
+            clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
+            syncedAt: now
+          }
+        });
+
+        if (record.chemicals?.length) {
+          await prisma.workOrderChemical.deleteMany({ where: { workOrderId: record.id } });
+          await prisma.workOrderChemical.createMany({
+            data: record.chemicals.map((chemical) => ({
+              workOrderId: record.id,
+              inventoryItemId: chemical.inventoryItemId || null,
+              product: chemical.product,
+              quantity: chemical.quantity,
+              unit: chemical.unit
+            }))
+          });
+        }
+      }
 
       await prisma.syncLog.create({
         data: {
