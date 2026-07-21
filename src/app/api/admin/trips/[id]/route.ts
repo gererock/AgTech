@@ -12,7 +12,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const body = await request.json();
-  const data: Prisma.TripUpdateInput = {};
+  const data: Prisma.TripUncheckedUpdateInput = {};
 
   if ("licensePlate" in body) data.licensePlate = body.licensePlate;
   if ("driverName" in body) data.driverName = body.driverName;
@@ -23,10 +23,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if ("destination" in body) data.destination = body.destination;
   if ("status" in body) data.status = body.status;
   if ("driverId" in body) {
-    data.driver = body.driverId ? { connect: { id: body.driverId } } : { disconnect: true };
+    data.driverId = body.driverId || null;
   }
   if ("agroItemId" in body) {
-    data.agroItem = body.agroItemId ? { connect: { id: body.agroItemId } } : { disconnect: true };
+    data.agroItemId = body.agroItemId || null;
   }
 
   const trip = await prisma.trip.update({
