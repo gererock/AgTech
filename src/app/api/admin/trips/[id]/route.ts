@@ -25,6 +25,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if ("driverId" in body) {
     data.driver = body.driverId ? { connect: { id: body.driverId } } : { disconnect: true };
   }
+  if ("agroItemId" in body) {
+    data.agroItem = body.agroItemId ? { connect: { id: body.agroItemId } } : { disconnect: true };
+  }
 
   const trip = await prisma.trip.update({
     where: { id: params.id },

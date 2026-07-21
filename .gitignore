@@ -12,3 +12,4 @@ package-lock.json.tmp
 /.next-dev/cache
 package-lock.json
 package.json
+tsconfig.tsbuildinfo
