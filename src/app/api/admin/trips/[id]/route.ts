@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 
 const prisma = new PrismaClient();
@@ -12,19 +12,23 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const body = await request.json();
+  const data: Prisma.TripUpdateInput = {};
+
+  if ("licensePlate" in body) data.licensePlate = body.licensePlate;
+  if ("driverName" in body) data.driverName = body.driverName;
+  if ("truck" in body) data.truck = body.truck || null;
+  if ("product" in body) data.product = body.product;
+  if ("estimatedKg" in body) data.estimatedKg = Number(body.estimatedKg);
+  if ("origin" in body) data.origin = body.origin;
+  if ("destination" in body) data.destination = body.destination;
+  if ("status" in body) data.status = body.status;
+  if ("driverId" in body) {
+    data.driver = body.driverId ? { connect: { id: body.driverId } } : { disconnect: true };
+  }
+
   const trip = await prisma.trip.update({
     where: { id: params.id },
-    data: {
-      licensePlate: body.licensePlate,
-      driverId: body.driverId || null,
-      driverName: body.driverName,
-      truck: body.truck,
-      product: body.product,
-      estimatedKg: Number(body.estimatedKg),
-      origin: body.origin,
-      destination: body.destination,
-      status: body.status
-    },
+    data,
     select: {
       id: true,
       licensePlate: true,

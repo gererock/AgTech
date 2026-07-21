@@ -32,6 +32,7 @@ import type {
 } from "@/lib/dashboard-data";
 import { clearAuthSession } from "@/lib/auth";
 import { getRoleLabel } from "@/lib/role-labels";
+import { getTripStatusLabel } from "@/lib/trip-status-labels";
 import { cn } from "@/lib/utils";
 import { EntityManager } from "@/components/dashboard/entity-manager";
 import { DailyOpsView } from "@/components/dashboard/daily-ops-view";
@@ -726,14 +727,14 @@ function SyncAudit({ rows }: { rows: SyncAuditRow[] }) {
 
 function TripStatusBadge({ status }: { status: TripTableRow["status"] }) {
   if (status === "COMPLETED") {
-    return <Badge tone="teal">Completado</Badge>;
+    return <Badge tone="teal">{getTripStatusLabel(status)}</Badge>;
   }
 
   if (status === "IN_TRANSIT") {
-    return <Badge tone="sky">En viaje</Badge>;
+    return <Badge tone="sky">{getTripStatusLabel(status)}</Badge>;
   }
 
-  return <Badge tone="amber">Pendiente</Badge>;
+  return <Badge tone="amber">{getTripStatusLabel(status)}</Badge>;
 }
 
 function Badge({ tone, children, className }: { tone: "teal" | "sky" | "amber" | "red" | "slate"; children: ReactNode; className?: string }) {

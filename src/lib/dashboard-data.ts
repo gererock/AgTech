@@ -215,19 +215,19 @@ function buildOverview(input: {
     ],
     tripStatus: [
       {
-        label: "Pendientes",
+        label: "Pendiente",
         value: pendingTrips,
         total: totalTripStatus,
         tone: "amber"
       },
       {
-        label: "En viaje",
+        label: "En transito",
         value: inTransitTrips,
         total: totalTripStatus,
         tone: "sky"
       },
       {
-        label: "Completados",
+        label: "Completado",
         value: completedTrips,
         total: totalTripStatus,
         tone: "teal"

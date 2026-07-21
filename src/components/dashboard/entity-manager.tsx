@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getRoleLabel, ROLE_OPTIONS } from "@/lib/role-labels";
+import { getTripStatusColorClassName, getTripStatusLabel, TRIP_STATUS_OPTIONS } from "@/lib/trip-status-labels";
+import { cn } from "@/lib/utils";
 
 const emptyForm: Record<string, string> = {};
 
@@ -276,20 +278,22 @@ export function EntityManager({ kind }: EntityManagerProps) {
               placeholder={kind === "trips" ? "Patente, conductor, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : kind === "customers" ? "Cliente, email o teléfono" : kind === "machineries" ? "Maquinaria, tipo o marca" : "Buscar"}
             />
           </div>
-          <div className="w-full lg:w-48">
-            <Label htmlFor="status-filter">{kind === "users" ? "Rol" : kind === "customers" || kind === "machineries" ? "Estado" : "Estado"}</Label>
-            <select
-              id="status-filter"
-              value={filters.status}
-              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-              className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-            >
-              <option value="">{kind === "users" ? "Todos los roles" : kind === "customers" || kind === "machineries" ? "Todos" : "Todos"}</option>
-              {getStatusOptions(kind).map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+          {kind !== "work-orders" ? (
+            <div className="w-full lg:w-48">
+              <Label htmlFor="status-filter">{kind === "users" ? "Rol" : "Estado"}</Label>
+              <select
+                id="status-filter"
+                value={filters.status}
+                onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
+                className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+              >
+                <option value="">{kind === "users" ? "Todos los roles" : "Todos"}</option>
+                {getStatusOptions(kind).map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           {kind !== "users" && kind !== "customers" && kind !== "machineries" ? (
             <div className="w-full lg:w-48">
               <Label htmlFor="date-filter">Fecha</Label>
@@ -330,7 +334,9 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <p className="font-black">{item.licensePlate}</p>
                         <p className="text-sm text-slate-600">{item.driverName}</p>
                       </div>
-                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.status}</span>
+                      <span className={cn("inline-flex h-7 items-center rounded-sm border px-2 text-xs font-black", getTripStatusColorClassName(item.status))}>
+                        {getTripStatusLabel(item.status)}
+                      </span>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">{item.product}</p>
                     <p className="text-sm text-slate-600">{item.origin} → {item.destination}</p>
@@ -429,34 +435,38 @@ export function EntityManager({ kind }: EntityManagerProps) {
                 </table>
               ) : null}
 
-              {kind === "trips" ? (
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="py-2 pr-3">Patente</th>
-                      <th className="py-2 pr-3">Conductor</th>
-                      <th className="py-2 pr-3">Producto</th>
-                      <th className="py-2 pr-3">Origen / Destino</th>
-                      <th className="py-2 pr-3">Estado</th>
-                      <th className="py-2 pr-3">Acciones</th>
+            {kind === "trips" ? (
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="py-2 pr-3">Patente</th>
+                    <th className="py-2 pr-3">Conductor</th>
+                    <th className="py-2 pr-3">Producto</th>
+                    <th className="py-2 pr-3">Estado</th>
+                    <th className="py-2 pr-3">Origen / Destino</th>
+                    <th className="py-2 pr-3">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
+                      <td className="py-2 pr-3">{item.driverName}</td>
+                      <td className="py-2 pr-3">{item.product}</td>
+                      <td className="py-2 pr-3">
+                        <span className={cn("inline-flex h-7 items-center rounded-sm border px-2 text-xs font-black", getTripStatusColorClassName(item.status))}>
+                          {getTripStatusLabel(item.status)}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-slate-600">{item.origin} a {item.destination}</td>
+                      <td className="py-2 pr-3">
+                        <div className="flex gap-2">
+                          <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                          <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {items.map((item) => (
-                      <tr key={item.id}>
-                        <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
-                        <td className="py-2 pr-3">{item.driverName}</td>
-                        <td className="py-2 pr-3">{item.product}</td>
-                        <td className="py-2 pr-3 text-slate-600">{item.origin} → {item.destination}</td>
-                        <td className="py-2 pr-3">{item.status}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex gap-2">
-                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                  ))}
                   </tbody>
                 </table>
               ) : null}
@@ -469,7 +479,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <th className="py-2 pr-3">Operador</th>
                       <th className="py-2 pr-3">Ha</th>
                       <th className="py-2 pr-3">Lote / Cliente</th>
-                      <th className="py-2 pr-3">Estado</th>
                       <th className="py-2 pr-3">Acciones</th>
                     </tr>
                   </thead>
@@ -480,7 +489,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3">{item.operatorName}</td>
                         <td className="py-2 pr-3">{item.hectaresWorked}</td>
                         <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
-                        <td className="py-2 pr-3">{item.status}</td>
                         <td className="py-2 pr-3">
                           <div className="flex gap-2">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
@@ -599,7 +607,7 @@ function getInitialForm(kind: EntityKind): Record<string, string> {
   if (kind === "machineries") {
     return { name: "", type: "", brand: "", identifier: "", active: "true" };
   }
-  return { machineryId: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customerId: "", status: "PENDING" };
+  return { machineryId: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customerId: "" };
 }
 
 function buildFormState(kind: EntityKind, item: any): Record<string, string> {
@@ -647,8 +655,7 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
     hectaresWorked: String(item.hectaresWorked),
     fuelLiters: String(item.fuelLiters),
     plot: item.plot,
-    customerId: item.customerId ?? "",
-    status: item.status
+    customerId: item.customerId ?? ""
   };
 }
 
@@ -764,8 +771,7 @@ function buildPayload(
     fuelLiters: Number(form.fuelLiters),
     plot: form.plot,
     customerId: form.customerId || null,
-    customer: selectedCustomer?.name ?? form.customerId ?? "",
-    status: form.status
+    customer: selectedCustomer?.name ?? form.customerId ?? ""
   };
 }
 
@@ -775,11 +781,7 @@ function getStatusOptions(kind: EntityKind) {
   }
 
   if (kind === "trips") {
-    return [
-      { value: "PENDING", label: "PENDING" },
-      { value: "IN_TRANSIT", label: "IN_TRANSIT" },
-      { value: "COMPLETED", label: "COMPLETED" }
-    ];
+    return TRIP_STATUS_OPTIONS;
   }
 
   if (kind === "customers" || kind === "machineries") {
@@ -789,11 +791,7 @@ function getStatusOptions(kind: EntityKind) {
     ];
   }
 
-  return [
-    { value: "PENDING", label: "PENDING" },
-    { value: "IN_PROGRESS", label: "IN_PROGRESS" },
-    { value: "COMPLETED", label: "COMPLETED" }
-  ];
+  return [];
 }
 
 function renderFields(
@@ -872,9 +870,9 @@ function renderFields(
         <div className="space-y-2">
           <Label htmlFor="status">Estado</Label>
           <select id="status" value={form.status ?? "PENDING"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-            <option value="PENDING">PENDING</option>
-            <option value="IN_TRANSIT">IN_TRANSIT</option>
-            <option value="COMPLETED">COMPLETED</option>
+            {TRIP_STATUS_OPTIONS.map((status) => (
+              <option key={status.value} value={status.value}>{status.label}</option>
+            ))}
           </select>
         </div>
       </>
