@@ -7,6 +7,7 @@ import { getTripStatusColorClassName, getTripStatusLabel, TRIP_STATUS_OPTIONS } 
 
 interface DailyOpsViewProps {
   initialDate?: string;
+  showWorkOrders?: boolean;
 }
 
 type TripRecord = {
@@ -41,7 +42,7 @@ type TripStatusChange = {
 
 const statusOptions = TRIP_STATUS_OPTIONS.map((option) => option.value);
 
-export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
+export function DailyOpsView({ initialDate, showWorkOrders = true }: DailyOpsViewProps) {
   const [date, setDate] = useState(initialDate ?? new Date().toISOString().slice(0, 10));
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrderRecord[]>([]);
@@ -57,14 +58,18 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
     try {
       const [tripsResponse, workOrdersResponse] = await Promise.all([
         fetch(`/api/admin/trips?date=${date}`),
-        fetch(`/api/admin/work-orders?date=${date}`)
+        showWorkOrders ? fetch(`/api/admin/work-orders?date=${date}`) : Promise.resolve(null)
       ]);
       if (tripsResponse.ok) setTrips(await tripsResponse.json());
-      if (workOrdersResponse.ok) setWorkOrders(await workOrdersResponse.json());
+      if (workOrdersResponse?.ok) {
+        setWorkOrders(await workOrdersResponse.json());
+      } else {
+        setWorkOrders([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, showWorkOrders]);
 
   useEffect(() => {
     void loadData();
@@ -183,7 +188,9 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="text-xl font-black">Operacion del dia</h2>
-            <p className="text-sm text-slate-600">Resumen operativo listo para usar en la jornada.</p>
+            <p className="text-sm text-slate-600">
+              {showWorkOrders ? "Resumen operativo listo para usar en la jornada." : "Gestion diaria de viajes."}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-bold text-slate-700" htmlFor="ops-date">Fecha</label>
@@ -193,23 +200,27 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
 
         {message ? <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div> : null}
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className={`mt-4 grid gap-3 ${showWorkOrders ? "md:grid-cols-3" : "md:grid-cols-1"}`}>
           <div className="rounded-md bg-slate-50 p-3">
             <p className="text-sm font-bold text-slate-600">Viajes activos</p>
             <p className="mt-1 text-2xl font-black">{summary.activeTrips}</p>
           </div>
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="text-sm font-bold text-slate-600">Partes cargados</p>
-            <p className="mt-1 text-2xl font-black">{summary.workOrderCount}</p>
-          </div>
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="text-sm font-bold text-slate-600">Combustible / ha</p>
-            <p className="mt-1 text-2xl font-black">{summary.totalFuel.toFixed(1)} / {summary.totalHectares.toFixed(1)}</p>
-          </div>
+          {showWorkOrders ? (
+            <>
+              <div className="rounded-md bg-slate-50 p-3">
+                <p className="text-sm font-bold text-slate-600">Partes cargados</p>
+                <p className="mt-1 text-2xl font-black">{summary.workOrderCount}</p>
+              </div>
+              <div className="rounded-md bg-slate-50 p-3">
+                <p className="text-sm font-bold text-slate-600">Combustible / ha</p>
+                <p className="mt-1 text-2xl font-black">{summary.totalFuel.toFixed(1)} / {summary.totalHectares.toFixed(1)}</p>
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className={`grid gap-6 ${showWorkOrders ? "xl:grid-cols-2" : ""}`}>
         <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -288,32 +299,34 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
           )}
         </section>
 
-        <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-black">Partes diarios</h3>
-              <p className="text-sm text-slate-600">Registros de trabajo cargados para la jornada.</p>
+        {showWorkOrders ? (
+          <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black">Partes diarios</h3>
+                <p className="text-sm text-slate-600">Registros de trabajo cargados para la jornada.</p>
+              </div>
             </div>
-          </div>
-          {loading ? <p className="text-sm text-slate-600">Cargando...</p> : (
-            <div className="space-y-3">
-              {workOrders.length === 0 ? <p className="text-sm text-slate-600">No hay partes para esta fecha.</p> : workOrders.map((workOrder) => (
-                <div key={workOrder.id} className="rounded-md border border-slate-200 p-3">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="font-black">{workOrder.machinery} - {workOrder.operatorName}</p>
-                      <p className="text-sm text-slate-600">{workOrder.plot} - {workOrder.customer}</p>
-                    </div>
-                    <div className="text-right text-sm font-bold text-slate-600">
-                      <p>{workOrder.hectaresWorked} ha</p>
-                      <p>{workOrder.fuelLiters} L</p>
+            {loading ? <p className="text-sm text-slate-600">Cargando...</p> : (
+              <div className="space-y-3">
+                {workOrders.length === 0 ? <p className="text-sm text-slate-600">No hay partes para esta fecha.</p> : workOrders.map((workOrder) => (
+                  <div key={workOrder.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-black">{workOrder.machinery} - {workOrder.operatorName}</p>
+                        <p className="text-sm text-slate-600">{workOrder.plot} - {workOrder.customer}</p>
+                      </div>
+                      <div className="text-right text-sm font-bold text-slate-600">
+                        <p>{workOrder.hectaresWorked} ha</p>
+                        <p>{workOrder.fuelLiters} L</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     </div>
   );

@@ -36,11 +36,12 @@ import { getTripStatusLabel } from "@/lib/trip-status-labels";
 import { cn } from "@/lib/utils";
 import { EntityManager } from "@/components/dashboard/entity-manager";
 import { DailyOpsView } from "@/components/dashboard/daily-ops-view";
-import type { AppRole } from "@/lib/authz";
+import type { AppUser } from "@/lib/authz";
 
 interface AdminDashboardProps {
   overview: DashboardOverview;
   initialView?: string;
+  initialProfile?: AppUser | null;
 }
 
 const numberFormatter = new Intl.NumberFormat("es-AR", {
@@ -57,16 +58,20 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0
 });
 
-export function AdminDashboard({ overview, initialView = "summary" }: AdminDashboardProps) {
+export function AdminDashboard({ overview, initialView = "summary", initialProfile = null }: AdminDashboardProps) {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState(initialView);
-  const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: AppRole } | null>(null);
+  const [profile, setProfile] = useState<AppUser | null>(initialProfile);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const mobileProfileMenuRef = useRef<HTMLDivElement>(null);
   const desktopProfileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (initialProfile) {
+      return;
+    }
+
     const loadProfile = async () => {
       try {
         const response = await fetch("/api/auth/me");
@@ -84,7 +89,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
     };
 
     loadProfile();
-  }, [router]);
+  }, [initialProfile, router]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -110,13 +115,28 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
     }
   };
 
-  const handleSectionChange = (sectionId: string) => {
-    setActiveSection(sectionId);
-  };
-
+  const isDriver = profile?.role === "DRIVER";
+  const canViewSummary = !isDriver;
+  const canViewWorkOrders = !isDriver;
   const canManageUsers = profile?.role === "ADMIN";
   const canManageCatalogs = profile?.role === "ADMIN";
   const canManageAllOperations = profile?.role === "ADMIN";
+
+  const handleSectionChange = (sectionId: string) => {
+    if (isDriver && (sectionId === "summary" || sectionId === "work-orders")) {
+      setActiveSection("trips");
+      return;
+    }
+
+    setActiveSection(sectionId);
+  };
+
+  useEffect(() => {
+    if (isDriver && (activeSection === "summary" || activeSection === "work-orders")) {
+      setActiveSection("trips");
+      router.replace("/dashboard?view=trips");
+    }
+  }, [activeSection, isDriver, router]);
 
   return (
     <div className="mobile-shell min-h-screen bg-slate-100 text-slate-950">
@@ -145,14 +165,16 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             </button>
           </div>
           <nav className="grid gap-1 overflow-y-auto p-2 text-sm font-bold text-slate-700 sm:p-3" aria-label="Secciones del panel">
-            <SidebarItem
-              icon={<LayoutDashboard className="h-4 w-4" />}
-              label="Resumen"
-              active={activeSection === "summary"}
-              onClick={() => handleSectionChange("summary")}
-              href="/dashboard?view=summary"
-              collapsed={isSidebarCollapsed}
-            />
+            {canViewSummary ? (
+              <SidebarItem
+                icon={<LayoutDashboard className="h-4 w-4" />}
+                label="Resumen"
+                active={activeSection === "summary"}
+                onClick={() => handleSectionChange("summary")}
+                href="/dashboard?view=summary"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
             <SidebarItem
               icon={<Activity className="h-4 w-4" />}
               label="Operación del día"
@@ -169,14 +191,16 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               href="/dashboard?view=trips"
               collapsed={isSidebarCollapsed}
             />
-            <SidebarItem
-              icon={<Tractor className="h-4 w-4" />}
-              label="Partes"
-              active={activeSection === "work-orders"}
-              onClick={() => handleSectionChange("work-orders")}
-              href="/dashboard?view=work-orders"
-              collapsed={isSidebarCollapsed}
-            />
+            {canViewWorkOrders ? (
+              <SidebarItem
+                icon={<Tractor className="h-4 w-4" />}
+                label="Partes"
+                active={activeSection === "work-orders"}
+                onClick={() => handleSectionChange("work-orders")}
+                href="/dashboard?view=work-orders"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
             {canManageCatalogs ? (
               <SidebarItem
                 icon={<Building2 className="h-4 w-4" />}
@@ -347,7 +371,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
           </header>
 
           <div className="grid gap-5 px-3 py-4 sm:px-4 lg:px-6 lg:py-5">
-            {activeSection === "summary" ? (
+            {activeSection === "summary" && canViewSummary ? (
               <>
                 <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {overview.metrics.map((metric) => (
@@ -406,7 +430,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             ) : null}
 
             {activeSection === "operations" ? (
-              <DailyOpsView />
+              <DailyOpsView showWorkOrders={canViewWorkOrders} />
             ) : null}
 
             {activeSection === "trips" ? (
@@ -415,7 +439,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               </div>
             ) : null}
 
-            {activeSection === "work-orders" ? (
+            {activeSection === "work-orders" && canViewWorkOrders ? (
               <div id="work-orders" className="scroll-mt-24">
                 <EntityManager kind="work-orders" />
               </div>
