@@ -225,25 +225,22 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-black">{getTitle(kind)}</h2>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={toggleCreateForm}
-            aria-expanded={isFormOpen}
-            className="w-full sm:w-auto"
-          >
-            {getCreateButtonLabel(kind)}
-          </Button>
+      <div className="flex items-center justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={toggleCreateForm}
+          aria-expanded={isFormOpen}
+          className="w-full sm:w-auto"
+        >
+          {getCreateButtonLabel(kind)}
+        </Button>
+      </div>
+      {message ? (
+        <div className={`mt-4 rounded-md border px-3 py-2 text-sm ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+          {message.text}
         </div>
-        {message ? (
-          <div className={`mt-4 rounded-md border px-3 py-2 text-sm ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
-            {message.text}
-          </div>
-        ) : null}
-      </section>
+      ) : null}
 
       {isFormOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
