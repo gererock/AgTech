@@ -246,18 +246,26 @@ export function EntityManager({ kind }: EntityManagerProps) {
       </section>
 
       {isFormOpen ? (
-        <form onSubmit={handleSubmit} className="rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-base font-black">{editingId ? getEditFormTitle(kind) : getCreateButtonLabel(kind)}</h3>
-            <Button type="button" variant="outline" onClick={() => resetForm()} className="w-full sm:w-auto">Limpiar</Button>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions })}
-            <div className="sm:col-span-2">
-              <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
+          <div className="w-full max-w-3xl rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
+              <h3 className="text-base font-black">{editingId ? getEditFormTitle(kind) : getCreateButtonLabel(kind)}</h3>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => resetForm()} className="w-full sm:w-auto">Limpiar</Button>
+                <Button type="button" variant="outline" onClick={() => { resetForm(); setIsFormOpen(false); }} className="w-full sm:w-auto">Cancelar</Button>
+              </div>
             </div>
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions })}
+                <div className="sm:col-span-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="outline" onClick={() => { resetForm(); setIsFormOpen(false); }} className="w-full sm:w-auto">Cancelar</Button>
+                  <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
+                </div>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       ) : null}
 
       <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
