@@ -7,6 +7,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Building2,
   ClipboardList,
   Fuel,
   Gauge,
@@ -113,6 +114,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
   };
 
   const canManageUsers = profile?.role === "ADMIN";
+  const canManageCatalogs = profile?.role === "ADMIN";
   const canManageAllOperations = profile?.role === "ADMIN";
 
   return (
@@ -174,6 +176,26 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               href="/dashboard?view=work-orders"
               collapsed={isSidebarCollapsed}
             />
+            {canManageCatalogs ? (
+              <SidebarItem
+                icon={<Building2 className="h-4 w-4" />}
+                label="Clientes"
+                active={activeSection === "customers"}
+                onClick={() => handleSectionChange("customers")}
+                href="/dashboard?view=customers"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            {canManageCatalogs ? (
+              <SidebarItem
+                icon={<Tractor className="h-4 w-4" />}
+                label="Maquinarias"
+                active={activeSection === "machineries"}
+                onClick={() => handleSectionChange("machineries")}
+                href="/dashboard?view=machineries"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
             {canManageUsers ? (
               <SidebarItem
                 icon={<Users className="h-4 w-4" />}
@@ -265,7 +287,11 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                           ? "Partes diarios"
                           : activeSection === "users"
                             ? "Usuarios"
-                            : "Auditoría de sincronización"}
+                            : activeSection === "customers"
+                              ? "Clientes"
+                              : activeSection === "machineries"
+                                ? "Maquinarias"
+                                : "Auditoría de sincronización"}
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -391,6 +417,18 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             {activeSection === "work-orders" ? (
               <div id="work-orders" className="scroll-mt-24">
                 <EntityManager kind="work-orders" />
+              </div>
+            ) : null}
+
+            {activeSection === "customers" && canManageCatalogs ? (
+              <div id="customers" className="scroll-mt-24">
+                <EntityManager kind="customers" />
+              </div>
+            ) : null}
+
+            {activeSection === "machineries" && canManageCatalogs ? (
+              <div id="machineries" className="scroll-mt-24">
+                <EntityManager kind="machineries" />
               </div>
             ) : null}
 

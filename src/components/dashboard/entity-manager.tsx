@@ -8,13 +8,30 @@ import { getRoleLabel, ROLE_OPTIONS } from "@/lib/role-labels";
 
 const emptyForm: Record<string, string> = {};
 
-export type EntityKind = "users" | "trips" | "work-orders";
+export type EntityKind = "users" | "trips" | "work-orders" | "customers" | "machineries";
 
 type UserOption = {
   id: string;
   name: string;
   email: string;
   role: string;
+};
+
+type CustomerOption = {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  active: boolean;
+};
+
+type MachineryOption = {
+  id: string;
+  name: string;
+  type?: string | null;
+  brand?: string | null;
+  identifier?: string | null;
+  active: boolean;
 };
 
 type FilterState = {
@@ -30,6 +47,8 @@ interface EntityManagerProps {
 export function EntityManager({ kind }: EntityManagerProps) {
   const [items, setItems] = useState<any[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [machineries, setMachineries] = useState<MachineryOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
@@ -76,9 +95,33 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   }, []);
 
+  const loadCustomers = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/customers");
+      if (response.ok) {
+        setCustomers(await response.json());
+      }
+    } catch {
+      setCustomers([]);
+    }
+  }, []);
+
+  const loadMachineries = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/machineries");
+      if (response.ok) {
+        setMachineries(await response.json());
+      }
+    } catch {
+      setMachineries([]);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsers();
-  }, [loadUsers]);
+    void loadCustomers();
+    void loadMachineries();
+  }, [loadUsers, loadCustomers, loadMachineries]);
 
   useEffect(() => {
     void loadItems();
@@ -126,7 +169,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
     const url = editingId ? `/api/admin/${kind}/${editingId}` : `/api/admin/${kind}`;
     const method = editingId ? "PATCH" : "POST";
-    const payload = buildPayload(kind, form);
+    const payload = buildPayload(kind, form, { customers, machineries });
 
     try {
       const response = await fetch(url, {
@@ -177,6 +220,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
   const driverOptions = users.filter((user) => user.role === "DRIVER" || user.role === "ADMIN");
   const operatorOptions = users.filter((user) => user.role === "MACHINE_OPERATOR" || user.role === "ADMIN");
+  const customerOptions = customers.filter((customer) => customer.active !== false);
+  const machineryOptions = machineries.filter((machinery) => machinery.active !== false);
 
   return (
     <div className="space-y-6">
@@ -207,7 +252,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
             <Button type="button" variant="outline" onClick={() => resetForm()} className="w-full sm:w-auto">Limpiar</Button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {renderFields(kind, form, setForm, { driverOptions, operatorOptions })}
+            {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions })}
             <div className="sm:col-span-2">
               <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
             </div>
@@ -223,24 +268,24 @@ export function EntityManager({ kind }: EntityManagerProps) {
               id="search-filter"
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder={kind === "trips" ? "Patente, conductor, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : "Buscar"}
+              placeholder={kind === "trips" ? "Patente, conductor, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : kind === "customers" ? "Cliente, email o teléfono" : kind === "machineries" ? "Maquinaria, tipo o marca" : "Buscar"}
             />
           </div>
           <div className="w-full lg:w-48">
-            <Label htmlFor="status-filter">{kind === "users" ? "Rol" : "Estado"}</Label>
+            <Label htmlFor="status-filter">{kind === "users" ? "Rol" : kind === "customers" || kind === "machineries" ? "Estado" : "Estado"}</Label>
             <select
               id="status-filter"
               value={filters.status}
               onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
               className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
             >
-              <option value="">{kind === "users" ? "Todos los roles" : "Todos"}</option>
+              <option value="">{kind === "users" ? "Todos los roles" : kind === "customers" || kind === "machineries" ? "Todos" : "Todos"}</option>
               {getStatusOptions(kind).map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </div>
-          {kind !== "users" ? (
+          {kind !== "users" && kind !== "customers" && kind !== "machineries" ? (
             <div className="w-full lg:w-48">
               <Label htmlFor="date-filter">Fecha</Label>
               <Input id="date-filter" type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} />
@@ -311,100 +356,200 @@ export function EntityManager({ kind }: EntityManagerProps) {
                   </div>
                 ))
               ) : null}
+
+              {kind === "customers" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.name}</p>
+                        <p className="text-sm text-slate-600">{item.email ?? "Sin email"}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.active ? "Activo" : "Inactivo"}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{item.phone ?? "Sin teléfono"}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+
+              {kind === "machineries" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.name}</p>
+                        <p className="text-sm text-slate-600">{item.type ?? "Sin tipo"}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.active ? "Activo" : "Inactivo"}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{item.brand ?? "Sin marca"} · {item.identifier ?? "Sin identificador"}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
             </div>
 
             <div className="hidden overflow-x-auto sm:block">
               {kind === "users" ? (
                 <table className="w-full min-w-[560px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="py-2 pr-3">Nombre</th>
-                    <th className="py-2 pr-3">Email</th>
-                    <th className="py-2 pr-3">Rol</th>
-                    <th className="py-2 pr-3">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="py-2 pr-3 font-bold">{item.name}</td>
-                      <td className="py-2 pr-3">{item.email}</td>
-                      <td className="py-2 pr-3">{getRoleLabel(item.role)}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex gap-2">
-                          <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                          <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
-                        </div>
-                      </td>
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Nombre</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Rol</th>
+                      <th className="py-2 pr-3">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : null}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.name}</td>
+                        <td className="py-2 pr-3">{item.email}</td>
+                        <td className="py-2 pr-3">{getRoleLabel(item.role)}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
 
-            {kind === "trips" ? (
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="py-2 pr-3">Patente</th>
-                    <th className="py-2 pr-3">Conductor</th>
-                    <th className="py-2 pr-3">Producto</th>
-                    <th className="py-2 pr-3">Origen / Destino</th>
-                    <th className="py-2 pr-3">Estado</th>
-                    <th className="py-2 pr-3">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
-                      <td className="py-2 pr-3">{item.driverName}</td>
-                      <td className="py-2 pr-3">{item.product}</td>
-                      <td className="py-2 pr-3 text-slate-600">{item.origin} → {item.destination}</td>
-                      <td className="py-2 pr-3">{item.status}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex gap-2">
-                          <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                          <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
-                        </div>
-                      </td>
+              {kind === "trips" ? (
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Patente</th>
+                      <th className="py-2 pr-3">Conductor</th>
+                      <th className="py-2 pr-3">Producto</th>
+                      <th className="py-2 pr-3">Origen / Destino</th>
+                      <th className="py-2 pr-3">Estado</th>
+                      <th className="py-2 pr-3">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : null}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
+                        <td className="py-2 pr-3">{item.driverName}</td>
+                        <td className="py-2 pr-3">{item.product}</td>
+                        <td className="py-2 pr-3 text-slate-600">{item.origin} → {item.destination}</td>
+                        <td className="py-2 pr-3">{item.status}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
 
-            {kind === "work-orders" ? (
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="py-2 pr-3">Maquinaria</th>
-                    <th className="py-2 pr-3">Operador</th>
-                    <th className="py-2 pr-3">Ha</th>
-                    <th className="py-2 pr-3">Lote / Cliente</th>
-                    <th className="py-2 pr-3">Estado</th>
-                    <th className="py-2 pr-3">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="py-2 pr-3 font-bold">{item.machinery}</td>
-                      <td className="py-2 pr-3">{item.operatorName}</td>
-                      <td className="py-2 pr-3">{item.hectaresWorked}</td>
-                      <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
-                      <td className="py-2 pr-3">{item.status}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex gap-2">
-                          <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                          <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
-                        </div>
-                      </td>
+              {kind === "work-orders" ? (
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Maquinaria</th>
+                      <th className="py-2 pr-3">Operador</th>
+                      <th className="py-2 pr-3">Ha</th>
+                      <th className="py-2 pr-3">Lote / Cliente</th>
+                      <th className="py-2 pr-3">Estado</th>
+                      <th className="py-2 pr-3">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : null}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.machinery}</td>
+                        <td className="py-2 pr-3">{item.operatorName}</td>
+                        <td className="py-2 pr-3">{item.hectaresWorked}</td>
+                        <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
+                        <td className="py-2 pr-3">{item.status}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+
+              {kind === "customers" ? (
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Nombre</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Teléfono</th>
+                      <th className="py-2 pr-3">Estado</th>
+                      <th className="py-2 pr-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.name}</td>
+                        <td className="py-2 pr-3">{item.email ?? "-"}</td>
+                        <td className="py-2 pr-3">{item.phone ?? "-"}</td>
+                        <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+
+              {kind === "machineries" ? (
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Nombre</th>
+                      <th className="py-2 pr-3">Tipo</th>
+                      <th className="py-2 pr-3">Marca</th>
+                      <th className="py-2 pr-3">Identificador</th>
+                      <th className="py-2 pr-3">Estado</th>
+                      <th className="py-2 pr-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.name}</td>
+                        <td className="py-2 pr-3">{item.type ?? "-"}</td>
+                        <td className="py-2 pr-3">{item.brand ?? "-"}</td>
+                        <td className="py-2 pr-3">{item.identifier ?? "-"}</td>
+                        <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
             </div>
           </div>
         )}
@@ -416,18 +561,24 @@ export function EntityManager({ kind }: EntityManagerProps) {
 function getTitle(kind: EntityKind) {
   if (kind === "users") return "Usuarios";
   if (kind === "trips") return "Viajes";
+  if (kind === "customers") return "Clientes";
+  if (kind === "machineries") return "Maquinarias";
   return "Partes diarios";
 }
 
 function getCreateButtonLabel(kind: EntityKind) {
   if (kind === "users") return "Crear usuario";
   if (kind === "trips") return "Crear viaje";
+  if (kind === "customers") return "Crear cliente";
+  if (kind === "machineries") return "Crear maquinaria";
   return "Crear parte diario";
 }
 
 function getEditFormTitle(kind: EntityKind) {
   if (kind === "users") return "Editar usuario";
   if (kind === "trips") return "Editar viaje";
+  if (kind === "customers") return "Editar cliente";
+  if (kind === "machineries") return "Editar maquinaria";
   return "Editar parte diario";
 }
 
@@ -438,7 +589,13 @@ function getInitialForm(kind: EntityKind): Record<string, string> {
   if (kind === "trips") {
     return { licensePlate: "", driverName: "", driverId: "", truck: "", product: "", estimatedKg: "", origin: "", destination: "", status: "PENDING" };
   }
-  return { machinery: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customer: "", status: "PENDING" };
+  if (kind === "customers") {
+    return { name: "", email: "", phone: "", address: "", documentNumber: "", active: "true" };
+  }
+  if (kind === "machineries") {
+    return { name: "", type: "", brand: "", identifier: "", active: "true" };
+  }
+  return { machineryId: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customerId: "", status: "PENDING" };
 }
 
 function buildFormState(kind: EntityKind, item: any): Record<string, string> {
@@ -458,8 +615,27 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
       status: item.status
     };
   }
+  if (kind === "customers") {
+    return {
+      name: item.name,
+      email: item.email ?? "",
+      phone: item.phone ?? "",
+      address: item.address ?? "",
+      documentNumber: item.documentNumber ?? "",
+      active: item.active ? "true" : "false"
+    };
+  }
+  if (kind === "machineries") {
+    return {
+      name: item.name,
+      type: item.type ?? "",
+      brand: item.brand ?? "",
+      identifier: item.identifier ?? "",
+      active: item.active ? "true" : "false"
+    };
+  }
   return {
-    machinery: item.machinery,
+    machineryId: item.machineryId ?? "",
     operatorName: item.operatorName,
     operatorId: item.operatorId ?? "",
     initialHourMeter: String(item.initialHourMeter),
@@ -467,7 +643,7 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
     hectaresWorked: String(item.hectaresWorked),
     fuelLiters: String(item.fuelLiters),
     plot: item.plot,
-    customer: item.customer,
+    customerId: item.customerId ?? "",
     status: item.status
   };
 }
@@ -491,12 +667,24 @@ function validateForm(kind: EntityKind, form: Record<string, string>): string | 
     return null;
   }
 
-  if (!form.machinery?.trim()) return "La maquinaria es obligatoria";
+  if (kind === "customers") {
+    if (!form.name?.trim()) return "El nombre es obligatorio";
+    if (form.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "El email no es válido";
+    return null;
+  }
+
+  if (kind === "machineries") {
+    if (!form.name?.trim()) return "El nombre es obligatorio";
+    return null;
+  }
+
+  if (!form.machineryId?.trim()) return "La maquinaria es obligatoria";
   if (!form.operatorName?.trim()) return "El operador es obligatorio";
   if (!form.initialHourMeter?.trim()) return "La hora inicial es obligatoria";
   if (!form.finalHourMeter?.trim()) return "La hora final es obligatoria";
   if (!form.hectaresWorked?.trim()) return "Las hectáreas trabajadas son obligatorias";
   if (!form.fuelLiters?.trim()) return "Los litros son obligatorios";
+  if (!form.customerId?.trim()) return "El cliente es obligatorio";
 
   const initialHourMeter = Number(form.initialHourMeter);
   const finalHourMeter = Number(form.finalHourMeter);
@@ -512,7 +700,11 @@ function validateForm(kind: EntityKind, form: Record<string, string>): string | 
   return null;
 }
 
-function buildPayload(kind: EntityKind, form: Record<string, string>) {
+function buildPayload(
+  kind: EntityKind,
+  form: Record<string, string>,
+  options: { customers: CustomerOption[]; machineries: MachineryOption[] }
+) {
   if (kind === "users") {
     return {
       name: form.name,
@@ -534,8 +726,32 @@ function buildPayload(kind: EntityKind, form: Record<string, string>) {
       status: form.status
     };
   }
+  if (kind === "customers") {
+    return {
+      name: form.name,
+      email: form.email || null,
+      phone: form.phone || null,
+      address: form.address || null,
+      documentNumber: form.documentNumber || null,
+      active: form.active === "true"
+    };
+  }
+  if (kind === "machineries") {
+    return {
+      name: form.name,
+      type: form.type || null,
+      brand: form.brand || null,
+      identifier: form.identifier || null,
+      active: form.active === "true"
+    };
+  }
+
+  const selectedMachinery = options.machineries.find((machinery) => machinery.id === form.machineryId);
+  const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
+
   return {
-    machinery: form.machinery,
+    machineryId: form.machineryId || null,
+    machinery: selectedMachinery?.name ?? form.machineryId ?? "",
     operatorId: form.operatorId || null,
     operatorName: form.operatorName,
     initialHourMeter: Number(form.initialHourMeter),
@@ -543,7 +759,8 @@ function buildPayload(kind: EntityKind, form: Record<string, string>) {
     hectaresWorked: Number(form.hectaresWorked),
     fuelLiters: Number(form.fuelLiters),
     plot: form.plot,
-    customer: form.customer,
+    customerId: form.customerId || null,
+    customer: selectedCustomer?.name ?? form.customerId ?? "",
     status: form.status
   };
 }
@@ -561,6 +778,13 @@ function getStatusOptions(kind: EntityKind) {
     ];
   }
 
+  if (kind === "customers" || kind === "machineries") {
+    return [
+      { value: "active", label: "Activos" },
+      { value: "inactive", label: "Inactivos" }
+    ];
+  }
+
   return [
     { value: "PENDING", label: "PENDING" },
     { value: "IN_PROGRESS", label: "IN_PROGRESS" },
@@ -572,7 +796,7 @@ function renderFields(
   kind: EntityKind,
   form: Record<string, string>,
   setForm: Dispatch<SetStateAction<Record<string, string>>>,
-  options: { driverOptions: UserOption[]; operatorOptions: UserOption[] }
+  options: { driverOptions: UserOption[]; operatorOptions: UserOption[]; customerOptions: CustomerOption[]; machineryOptions: MachineryOption[] }
 ) {
   if (kind === "users") {
     return (
@@ -653,11 +877,80 @@ function renderFields(
     );
   }
 
+  if (kind === "customers") {
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="customerName">Nombre</Label>
+          <Input id="customerName" value={form.name ?? ""} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="customerEmail">Email</Label>
+          <Input id="customerEmail" type="email" value={form.email ?? ""} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="customerPhone">Teléfono</Label>
+          <Input id="customerPhone" value={form.phone ?? ""} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="customerAddress">Dirección</Label>
+          <Input id="customerAddress" value={form.address ?? ""} onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="customerDocument">Documento</Label>
+          <Input id="customerDocument" value={form.documentNumber ?? ""} onChange={(event) => setForm((current) => ({ ...current, documentNumber: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="customerActive">Estado</Label>
+          <select id="customerActive" value={form.active ?? "true"} onChange={(event) => setForm((current) => ({ ...current, active: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </div>
+      </>
+    );
+  }
+
+  if (kind === "machineries") {
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="machineryName">Nombre</Label>
+          <Input id="machineryName" value={form.name ?? ""} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="machineryType">Tipo</Label>
+          <Input id="machineryType" value={form.type ?? ""} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="machineryBrand">Marca</Label>
+          <Input id="machineryBrand" value={form.brand ?? ""} onChange={(event) => setForm((current) => ({ ...current, brand: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="machineryIdentifier">Identificador</Label>
+          <Input id="machineryIdentifier" value={form.identifier ?? ""} onChange={(event) => setForm((current) => ({ ...current, identifier: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="machineryActive">Estado</Label>
+          <select id="machineryActive" value={form.active ?? "true"} onChange={(event) => setForm((current) => ({ ...current, active: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="space-y-2">
         <Label htmlFor="machinery">Maquinaria</Label>
-        <Input id="machinery" value={form.machinery ?? ""} onChange={(event) => setForm((current) => ({ ...current, machinery: event.target.value }))} required />
+        <select id="machinery" value={form.machineryId ?? ""} onChange={(event) => setForm((current) => ({ ...current, machineryId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+          <option value="">Seleccionar maquinaria</option>
+          {options.machineryOptions.map((machinery) => (
+            <option key={machinery.id} value={machinery.id}>{machinery.name}</option>
+          ))}
+        </select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="operatorName">Operador</Label>
@@ -694,7 +987,12 @@ function renderFields(
       </div>
       <div className="space-y-2">
         <Label htmlFor="customer">Cliente</Label>
-        <Input id="customer" value={form.customer ?? ""} onChange={(event) => setForm((current) => ({ ...current, customer: event.target.value }))} />
+        <select id="customer" value={form.customerId ?? ""} onChange={(event) => setForm((current) => ({ ...current, customerId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+          <option value="">Seleccionar cliente</option>
+          {options.customerOptions.map((customer) => (
+            <option key={customer.id} value={customer.id}>{customer.name}</option>
+          ))}
+        </select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="workOrderStatus">Estado</Label>
