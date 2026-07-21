@@ -1,43 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-
-const emptyForm: Record<string, string> = {};
+import { useCallback, useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const emptyForm: Record<string, string> = {};
+
 export type EntityKind = "users" | "trips" | "work-orders";
 
-type UserRow = {
+type UserOption = {
   id: string;
   name: string;
   email: string;
   role: string;
 };
 
-type TripRow = {
-  id: string;
-  licensePlate: string;
-  driverName: string;
-  truck: string | null;
-  product: string;
-  estimatedKg: number;
-  origin: string;
-  destination: string;
+type FilterState = {
+  search: string;
   status: string;
-};
-
-type WorkOrderRow = {
-  id: string;
-  machinery: string;
-  operatorName: string;
-  initialHourMeter: number;
-  finalHourMeter: number;
-  hectaresWorked: number;
-  fuelLiters: number;
-  plot: string;
-  customer: string;
+  date: string;
 };
 
 interface EntityManagerProps {
@@ -46,27 +28,66 @@ interface EntityManagerProps {
 
 export function EntityManager({ kind }: EntityManagerProps) {
   const [items, setItems] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({ search: "", status: "", date: "" });
 
-  const loadItems = useCallback(async () => {
+  const loadItems = useCallback(async (currentFilters: FilterState = filters) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/${kind}`);
+      const params = new URLSearchParams();
+
+      if (currentFilters.search.trim()) {
+        params.set("search", currentFilters.search.trim());
+      }
+
+      if (currentFilters.status) {
+        params.set("status", currentFilters.status);
+      }
+
+      if (currentFilters.date) {
+        params.set("date", currentFilters.date);
+      }
+
+      const query = params.toString();
+      const response = await fetch(`/api/admin/${kind}${query ? `?${query}` : ""}`);
       if (response.ok) {
         setItems(await response.json());
       }
     } finally {
       setLoading(false);
     }
-  }, [kind]);
+  }, [filters, kind]);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/users");
+      if (response.ok) {
+        setUsers(await response.json());
+      }
+    } catch {
+      setUsers([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
 
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
+
+  useEffect(() => {
+    setEditingId(null);
+    setForm(getInitialForm(kind));
+    setFilters({ search: "", status: "", date: "" });
+    setMessage(null);
+  }, [kind]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -74,7 +95,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
     setMessage(null);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validationMessage = validateForm(kind, form);
     if (validationMessage) {
@@ -104,7 +125,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
       setMessage({ type: "success", text: editingId ? "Registro actualizado correctamente" : "Registro creado correctamente" });
       resetForm();
-      await loadItems();
+      await loadItems(filters);
     } finally {
       setSubmitting(false);
     }
@@ -125,7 +146,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
       const response = await fetch(`/api/admin/${kind}/${id}`, { method: "DELETE" });
       if (response.ok) {
         setMessage({ type: "success", text: "Registro eliminado correctamente" });
-        await loadItems();
+        await loadItems(filters);
       } else {
         setMessage({ type: "error", text: "No se pudo eliminar el registro" });
       }
@@ -133,6 +154,9 @@ export function EntityManager({ kind }: EntityManagerProps) {
       setMessage({ type: "error", text: "No se pudo eliminar el registro" });
     }
   };
+
+  const driverOptions = users.filter((user) => user.role === "DRIVER" || user.role === "ADMIN");
+  const operatorOptions = users.filter((user) => user.role === "MACHINE_OPERATOR" || user.role === "ADMIN");
 
   return (
     <div className="space-y-6">
@@ -147,7 +171,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
           </div>
         ) : null}
         <div className="grid gap-4 md:grid-cols-2">
-          {renderFields(kind, form, setForm)}
+          {renderFields(kind, form, setForm, { driverOptions, operatorOptions })}
           <div className="md:col-span-2">
             <Button type="submit" disabled={submitting}>{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
           </div>
@@ -155,6 +179,37 @@ export function EntityManager({ kind }: EntityManagerProps) {
       </form>
 
       <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex-1">
+            <Label htmlFor="search-filter">Buscar</Label>
+            <Input
+              id="search-filter"
+              value={filters.search}
+              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+              placeholder={kind === "trips" ? "Patente, chofer, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : "Buscar"}
+            />
+          </div>
+          <div className="w-full lg:w-48">
+            <Label htmlFor="status-filter">Estado</Label>
+            <select
+              id="status-filter"
+              value={filters.status}
+              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
+              className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+            >
+              <option value="">Todos</option>
+              {getStatusOptions(kind).map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full lg:w-48">
+            <Label htmlFor="date-filter">Fecha</Label>
+            <Input id="date-filter" type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} />
+          </div>
+          <Button type="button" variant="outline" onClick={() => setFilters({ search: "", status: "", date: "" })}>Limpiar</Button>
+        </div>
+
         {loading ? (
           <p className="text-sm text-slate-600">Cargando...</p>
         ) : (
@@ -188,13 +243,13 @@ export function EntityManager({ kind }: EntityManagerProps) {
             ) : null}
 
             {kind === "trips" ? (
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="py-2 pr-3">Patente</th>
                     <th className="py-2 pr-3">Chofer</th>
                     <th className="py-2 pr-3">Producto</th>
-                    <th className="py-2 pr-3">Kg</th>
+                    <th className="py-2 pr-3">Origen / Destino</th>
                     <th className="py-2 pr-3">Estado</th>
                     <th className="py-2 pr-3">Acciones</th>
                   </tr>
@@ -205,7 +260,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
                       <td className="py-2 pr-3">{item.driverName}</td>
                       <td className="py-2 pr-3">{item.product}</td>
-                      <td className="py-2 pr-3">{item.estimatedKg}</td>
+                      <td className="py-2 pr-3 text-slate-600">{item.origin} → {item.destination}</td>
                       <td className="py-2 pr-3">{item.status}</td>
                       <td className="py-2 pr-3">
                         <div className="flex gap-2">
@@ -220,14 +275,14 @@ export function EntityManager({ kind }: EntityManagerProps) {
             ) : null}
 
             {kind === "work-orders" ? (
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="py-2 pr-3">Maquinaria</th>
                     <th className="py-2 pr-3">Operador</th>
                     <th className="py-2 pr-3">Ha</th>
-                    <th className="py-2 pr-3">Litros</th>
-                    <th className="py-2 pr-3">Cliente</th>
+                    <th className="py-2 pr-3">Lote / Cliente</th>
+                    <th className="py-2 pr-3">Estado</th>
                     <th className="py-2 pr-3">Acciones</th>
                   </tr>
                 </thead>
@@ -237,8 +292,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <td className="py-2 pr-3 font-bold">{item.machinery}</td>
                       <td className="py-2 pr-3">{item.operatorName}</td>
                       <td className="py-2 pr-3">{item.hectaresWorked}</td>
-                      <td className="py-2 pr-3">{item.fuelLiters}</td>
-                      <td className="py-2 pr-3">{item.customer}</td>
+                      <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
+                      <td className="py-2 pr-3">{item.status}</td>
                       <td className="py-2 pr-3">
                         <div className="flex gap-2">
                           <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
@@ -268,9 +323,9 @@ function getInitialForm(kind: EntityKind): Record<string, string> {
     return { name: "", email: "", password: "", role: "ADMIN" };
   }
   if (kind === "trips") {
-    return { licensePlate: "", driverName: "", truck: "", product: "", estimatedKg: "", origin: "", destination: "", status: "PENDING" };
+    return { licensePlate: "", driverName: "", driverId: "", truck: "", product: "", estimatedKg: "", origin: "", destination: "", status: "PENDING" };
   }
-  return { machinery: "", operatorName: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customer: "" };
+  return { machinery: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customer: "", status: "PENDING" };
 }
 
 function buildFormState(kind: EntityKind, item: any): Record<string, string> {
@@ -278,9 +333,30 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
     return { name: item.name, email: item.email, password: "", role: item.role };
   }
   if (kind === "trips") {
-    return { licensePlate: item.licensePlate, driverName: item.driverName, truck: item.truck ?? "", product: item.product, estimatedKg: String(item.estimatedKg), origin: item.origin, destination: item.destination, status: item.status };
+    return {
+      licensePlate: item.licensePlate,
+      driverName: item.driverName,
+      driverId: item.driverId ?? "",
+      truck: item.truck ?? "",
+      product: item.product,
+      estimatedKg: String(item.estimatedKg),
+      origin: item.origin,
+      destination: item.destination,
+      status: item.status
+    };
   }
-  return { machinery: item.machinery, operatorName: item.operatorName, initialHourMeter: String(item.initialHourMeter), finalHourMeter: String(item.finalHourMeter), hectaresWorked: String(item.hectaresWorked), fuelLiters: String(item.fuelLiters), plot: item.plot, customer: item.customer };
+  return {
+    machinery: item.machinery,
+    operatorName: item.operatorName,
+    operatorId: item.operatorId ?? "",
+    initialHourMeter: String(item.initialHourMeter),
+    finalHourMeter: String(item.finalHourMeter),
+    hectaresWorked: String(item.hectaresWorked),
+    fuelLiters: String(item.fuelLiters),
+    plot: item.plot,
+    customer: item.customer,
+    status: item.status
+  };
 }
 
 function validateForm(kind: EntityKind, form: Record<string, string>): string | null {
@@ -288,9 +364,7 @@ function validateForm(kind: EntityKind, form: Record<string, string>): string | 
     if (!form.name?.trim()) return "El nombre es obligatorio";
     if (!form.email?.trim()) return "El email es obligatorio";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "El email no es válido";
-    if (!form.password?.trim() && !form.role) return "La contraseña es obligatoria";
-    if (!form.password?.trim() && !form.name) return "La contraseña es obligatoria";
-    if (!form.password?.trim() && !form.email) return "La contraseña es obligatoria";
+    if (!form.password?.trim()) return "La contraseña es obligatoria";
     return null;
   }
 
@@ -337,6 +411,7 @@ function buildPayload(kind: EntityKind, form: Record<string, string>) {
   if (kind === "trips") {
     return {
       licensePlate: form.licensePlate,
+      driverId: form.driverId || null,
       driverName: form.driverName,
       truck: form.truck || null,
       product: form.product,
@@ -348,17 +423,40 @@ function buildPayload(kind: EntityKind, form: Record<string, string>) {
   }
   return {
     machinery: form.machinery,
+    operatorId: form.operatorId || null,
     operatorName: form.operatorName,
     initialHourMeter: Number(form.initialHourMeter),
     finalHourMeter: Number(form.finalHourMeter),
     hectaresWorked: Number(form.hectaresWorked),
     fuelLiters: Number(form.fuelLiters),
     plot: form.plot,
-    customer: form.customer
+    customer: form.customer,
+    status: form.status
   };
 }
 
-function renderFields(kind: EntityKind, form: Record<string, string>, setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>) {
+function getStatusOptions(kind: EntityKind) {
+  if (kind === "trips") {
+    return [
+      { value: "PENDING", label: "PENDING" },
+      { value: "IN_TRANSIT", label: "IN_TRANSIT" },
+      { value: "COMPLETED", label: "COMPLETED" }
+    ];
+  }
+
+  return [
+    { value: "PENDING", label: "PENDING" },
+    { value: "IN_PROGRESS", label: "IN_PROGRESS" },
+    { value: "COMPLETED", label: "COMPLETED" }
+  ];
+}
+
+function renderFields(
+  kind: EntityKind,
+  form: Record<string, string>,
+  setForm: Dispatch<SetStateAction<Record<string, string>>>,
+  options: { driverOptions: UserOption[]; operatorOptions: UserOption[] }
+) {
   if (kind === "users") {
     return (
       <>
@@ -396,6 +494,15 @@ function renderFields(kind: EntityKind, form: Record<string, string>, setForm: R
         <div className="space-y-2">
           <Label htmlFor="driverName">Chofer</Label>
           <Input id="driverName" value={form.driverName ?? ""} onChange={(event) => setForm((current) => ({ ...current, driverName: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="driverId">Asignar chofer</Label>
+          <select id="driverId" value={form.driverId ?? ""} onChange={(event) => setForm((current) => ({ ...current, driverId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="">Sin asignar</option>
+            {options.driverOptions.map((user) => (
+              <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="truck">Camión</Label>
@@ -440,6 +547,15 @@ function renderFields(kind: EntityKind, form: Record<string, string>, setForm: R
         <Input id="operatorName" value={form.operatorName ?? ""} onChange={(event) => setForm((current) => ({ ...current, operatorName: event.target.value }))} required />
       </div>
       <div className="space-y-2">
+        <Label htmlFor="operatorId">Asignar operador</Label>
+        <select id="operatorId" value={form.operatorId ?? ""} onChange={(event) => setForm((current) => ({ ...current, operatorId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+          <option value="">Sin asignar</option>
+          {options.operatorOptions.map((user) => (
+            <option key={user.id} value={user.id}>{user.name}</option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="initialHourMeter">H. inicial</Label>
         <Input id="initialHourMeter" type="number" value={form.initialHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, initialHourMeter: event.target.value }))} required />
       </div>
@@ -462,6 +578,14 @@ function renderFields(kind: EntityKind, form: Record<string, string>, setForm: R
       <div className="space-y-2">
         <Label htmlFor="customer">Cliente</Label>
         <Input id="customer" value={form.customer ?? ""} onChange={(event) => setForm((current) => ({ ...current, customer: event.target.value }))} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="workOrderStatus">Estado</Label>
+        <select id="workOrderStatus" value={form.status ?? "PENDING"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+          <option value="PENDING">PENDING</option>
+          <option value="IN_PROGRESS">IN_PROGRESS</option>
+          <option value="COMPLETED">COMPLETED</option>
+        </select>
       </div>
     </>
   );

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { requireRole } from "@/lib/authz";
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,12 @@ function hashPassword(password: string) {
 }
 
 export async function GET() {
+  const auth = await requireRole(["ADMIN", "DRIVER", "MACHINE_OPERATOR"]);
+
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
+  }
+
   const users = await prisma.user.findMany({
     select: { id: true, name: true, email: true, role: true },
     orderBy: { createdAt: "desc" }
@@ -18,6 +25,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
+  }
+
   const body = await request.json();
   const user = await prisma.user.create({
     data: {

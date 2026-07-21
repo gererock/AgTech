@@ -30,6 +30,8 @@ import type {
 import { clearAuthSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { EntityManager } from "@/components/dashboard/entity-manager";
+import { DailyOpsView } from "@/components/dashboard/daily-ops-view";
+import type { AppRole } from "@/lib/authz";
 
 interface AdminDashboardProps {
   overview: DashboardOverview;
@@ -53,7 +55,7 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
 export function AdminDashboard({ overview, initialView = "summary" }: AdminDashboardProps) {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState(initialView);
-  const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: AppRole } | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +103,9 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
     setActiveSection(sectionId);
   };
 
+  const canManageUsers = profile?.role === "ADMIN";
+  const canManageAllOperations = profile?.role === "ADMIN";
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <div className="flex min-h-screen">
@@ -118,6 +123,13 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               href="/dashboard?view=summary"
             />
             <SidebarItem
+              icon={<Activity className="h-4 w-4" />}
+              label="Operación del día"
+              active={activeSection === "operations"}
+              onClick={() => handleSectionChange("operations")}
+              href="/dashboard?view=operations"
+            />
+            <SidebarItem
               icon={<Truck className="h-4 w-4" />}
               label="Viajes"
               active={activeSection === "trips"}
@@ -131,20 +143,24 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               onClick={() => handleSectionChange("work-orders")}
               href="/dashboard?view=work-orders"
             />
-            <SidebarItem
-              icon={<Users className="h-4 w-4" />}
-              label="Usuarios"
-              active={activeSection === "users"}
-              onClick={() => handleSectionChange("users")}
-              href="/dashboard?view=users"
-            />
-            <SidebarItem
-              icon={<RefreshCw className="h-4 w-4" />}
-              label="Auditoria sync"
-              active={activeSection === "sync-audit"}
-              onClick={() => handleSectionChange("sync-audit")}
-              href="/dashboard?view=sync-audit"
-            />
+            {canManageUsers ? (
+              <SidebarItem
+                icon={<Users className="h-4 w-4" />}
+                label="Usuarios"
+                active={activeSection === "users"}
+                onClick={() => handleSectionChange("users")}
+                href="/dashboard?view=users"
+              />
+            ) : null}
+            {canManageAllOperations ? (
+              <SidebarItem
+                icon={<RefreshCw className="h-4 w-4" />}
+                label="Auditoria sync"
+                active={activeSection === "sync-audit"}
+                onClick={() => handleSectionChange("sync-audit")}
+                href="/dashboard?view=sync-audit"
+              />
+            ) : null}
           </nav>
         </aside>
 
@@ -156,13 +172,15 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 <h2 className="text-2xl font-black tracking-normal">
                   {activeSection === "summary"
                     ? "Operación sincronizada"
-                    : activeSection === "trips"
-                      ? "Viajes"
-                      : activeSection === "work-orders"
-                        ? "Partes diarios"
-                        : activeSection === "users"
-                          ? "Usuarios"
-                          : "Auditoría de sincronización"}
+                    : activeSection === "operations"
+                      ? "Operación del día"
+                      : activeSection === "trips"
+                        ? "Viajes"
+                        : activeSection === "work-orders"
+                          ? "Partes diarios"
+                          : activeSection === "users"
+                            ? "Usuarios"
+                            : "Auditoría de sincronización"}
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -275,6 +293,10 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               </>
             ) : null}
 
+            {activeSection === "operations" ? (
+              <DailyOpsView />
+            ) : null}
+
             {activeSection === "trips" ? (
               <div id="trips" className="scroll-mt-24">
                 <EntityManager kind="trips" />
@@ -287,13 +309,13 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               </div>
             ) : null}
 
-            {activeSection === "users" ? (
+            {activeSection === "users" && canManageUsers ? (
               <div id="users" className="scroll-mt-24">
                 <EntityManager kind="users" />
               </div>
             ) : null}
 
-            {activeSection === "sync-audit" ? (
+            {activeSection === "sync-audit" && canManageAllOperations ? (
               <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
                 <SyncAudit rows={overview.syncAudit} />
               </Panel>

@@ -16,6 +16,20 @@ const users = [
     email: "admin@agtech.com",
     passwordHash: hashPassword("agtech2025"),
     role: "ADMIN"
+  },
+  {
+    id: "b2d3c53e-8c92-4d7a-b9a0-1e3fdb9f8870",
+    name: "Tomás Driver",
+    email: "driver@agtech.com",
+    passwordHash: hashPassword("driver2025"),
+    role: "DRIVER"
+  },
+  {
+    id: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
+    name: "Lucía Maquinista",
+    email: "maquinista@agtech.com",
+    passwordHash: hashPassword("maquinista2025"),
+    role: "MACHINE_OPERATOR"
   }
 ];
 
@@ -24,7 +38,7 @@ const trips = [
     id: "0f54c716-6d07-40dc-b40c-1193bb0f316a",
     truck: "Scania R450",
     licensePlate: "AB123CD",
-    driverId: "ba5dd187-4f96-4472-a908-230d2012317b",
+    driverId: "b2d3c53e-8c92-4d7a-b9a0-1e3fdb9f8870",
     driverName: "Martin Rivas",
     origin: "Campo La Esperanza",
     destination: "Acopio Norte",
@@ -40,7 +54,7 @@ const trips = [
     id: "4accd38d-ef20-4692-8784-59cbba0d6793",
     truck: "Volvo FH",
     licensePlate: "AE845LP",
-    driverId: "4e044138-0669-4914-96aa-6ed5222a63dd",
+    driverId: "b2d3c53e-8c92-4d7a-b9a0-1e3fdb9f8870",
     driverName: "Laura Medina",
     origin: "Lote 8",
     destination: "Puerto Rosario",
@@ -58,7 +72,7 @@ const workOrders = [
   {
     id: "2cefb24a-dc77-412d-a910-e6dd9f7cf15c",
     machinery: "Pulverizadora Pla MAP II",
-    operatorId: "1686ea78-359f-420d-81e1-8a2ad4460176",
+    operatorId: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
     operatorName: "Nicolas Duarte",
     initialHourMeter: 1240.5,
     finalHourMeter: 1258.7,
@@ -72,7 +86,7 @@ const workOrders = [
   {
     id: "54a81258-b18b-445e-879a-54a9fbe85fc4",
     machinery: "Tractor John Deere 7215J",
-    operatorId: "42ef8310-aeaf-41a5-8315-9295bdb19533",
+    operatorId: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
     operatorName: "Eva Molina",
     initialHourMeter: 821.1,
     finalHourMeter: 833.4,

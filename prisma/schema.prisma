@@ -29,6 +29,12 @@ enum SyncStatus {
   FAILED
 }
 
+enum WorkOrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   name         String
@@ -76,6 +82,7 @@ model WorkOrder {
   finalHourMeter    Float
   hectaresWorked    Float
   fuelLiters        Float
+  status            WorkOrderStatus @default(PENDING)
   plot              String   @default("Sin informar")
   customer          String   @default("Sin informar")
   clientCreatedAt   DateTime?
