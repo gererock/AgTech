@@ -48,6 +48,11 @@ export const workOrderSyncPayloadSchema = z.object({
   records: z.array(workOrderSyncRecordSchema).max(100)
 });
 
+export type SyncFailure = {
+  id: string;
+  error: string;
+};
+
 export const tripCreateSchema = z.object({
   truck: optionalTextSchema,
   licensePlate: z.string().trim().min(1).max(20),
@@ -83,4 +88,5 @@ export type WorkOrderSyncRecord = z.infer<typeof workOrderSyncRecordSchema>;
 
 export interface SyncResponse {
   syncedIds: string[];
+  failedRecords?: SyncFailure[];
 }

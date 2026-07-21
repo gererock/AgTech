@@ -31,12 +31,14 @@ export function useOfflineSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
 
+  const MAX_SYNC_RETRY = 3;
+
   const refreshPendingCount = useCallback(async () => {
     try {
       const db = getAgroOfflineDb();
       const [tripCount, workOrderCount] = await Promise.all([
-        db.trips.where("syncStatus").equals("pending").count(),
-        db.workOrders.where("syncStatus").equals("pending").count()
+        db.trips.where("syncStatus").notEqual("synced").count(),
+        db.workOrders.where("syncStatus").notEqual("synced").count()
       ]);
 
       setPendingCount(tripCount + workOrderCount);
@@ -57,16 +59,22 @@ export function useOfflineSync() {
     try {
       const db = getAgroOfflineDb();
       const [pendingTrips, pendingWorkOrders] = await Promise.all([
-        db.trips.where("syncStatus").equals("pending").toArray(),
-        db.workOrders.where("syncStatus").equals("pending").toArray()
+        db.trips.where("syncStatus").notEqual("synced").toArray(),
+        db.workOrders.where("syncStatus").notEqual("synced").toArray()
       ]);
 
       const syncedIds: string[] = [];
+      let allOk = true;
 
       if (pendingTrips.length > 0) {
         const response = await postRecords<TripSyncRecord>("/api/trips/sync", pendingTrips);
         await markTripsAsSynced(pendingTrips, response.syncedIds);
         syncedIds.push(...response.syncedIds);
+
+        if (response.failedRecords?.length) {
+          allOk = false;
+          await markTripsAsFailed(pendingTrips, response.failedRecords, MAX_SYNC_RETRY);
+        }
       }
 
       if (pendingWorkOrders.length > 0) {
@@ -76,10 +84,15 @@ export function useOfflineSync() {
         );
         await markWorkOrdersAsSynced(pendingWorkOrders, response.syncedIds);
         syncedIds.push(...response.syncedIds);
+
+        if (response.failedRecords?.length) {
+          allOk = false;
+          await markWorkOrdersAsFailed(pendingWorkOrders, response.failedRecords, MAX_SYNC_RETRY);
+        }
       }
 
       await refreshPendingCount();
-      return { ok: true, syncedIds };
+      return { ok: allOk, syncedIds, error: allOk ? undefined : "Some records failed to sync" };
     } catch (error) {
       const message = getErrorMessage(error);
       setLastSyncError(message);
@@ -197,9 +210,43 @@ async function markTripsAsSynced(records: OfflineTrip[], syncedIds: string[]) {
             synced: true,
             syncStatus: "synced",
             syncedAt,
-            lastError: undefined
+            lastError: undefined,
+            retryCount: 0
           })
         )
+    );
+  });
+}
+
+async function markTripsAsFailed(records: OfflineTrip[], failedRecords: { id: string; error: string }[], maxRetry: number) {
+  const db = getAgroOfflineDb();
+  const failedById = new Map(failedRecords.map((failure) => [failure.id, failure]));
+
+  await db.transaction("rw", db.trips, async () => {
+    await Promise.all(
+      records.map(async (record) => {
+        if (!failedById.has(record.id)) {
+          return;
+        }
+
+        const failure = failedById.get(record.id)!;
+        const existing = await db.trips.get(record.id);
+
+        if (!existing) {
+          return;
+        }
+
+        const retryCount = Math.min(existing.retryCount + 1, maxRetry);
+        const syncStatus = retryCount >= maxRetry ? "failed" : "pending";
+
+        await db.trips.update(record.id, {
+          synced: false,
+          syncStatus,
+          lastError: failure.error,
+          retryCount,
+          updatedAt: new Date().toISOString()
+        });
+      })
     );
   });
 }
@@ -218,22 +265,63 @@ async function markWorkOrdersAsSynced(records: OfflineWorkOrder[], syncedIds: st
             synced: true,
             syncStatus: "synced",
             syncedAt,
-            lastError: undefined
+            lastError: undefined,
+            retryCount: 0
           })
         )
     );
   });
 }
 
+async function markWorkOrdersAsFailed(records: OfflineWorkOrder[], failedRecords: { id: string; error: string }[], maxRetry: number) {
+  const db = getAgroOfflineDb();
+  const failedById = new Map(failedRecords.map((failure) => [failure.id, failure]));
+
+  await db.transaction("rw", db.workOrders, async () => {
+    await Promise.all(
+      records.map(async (record) => {
+        if (!failedById.has(record.id)) {
+          return;
+        }
+
+        const failure = failedById.get(record.id)!;
+        const existing = await db.workOrders.get(record.id);
+
+        if (!existing) {
+          return;
+        }
+
+        const retryCount = Math.min(existing.retryCount + 1, maxRetry);
+        const syncStatus = retryCount >= maxRetry ? "failed" : "pending";
+
+        await db.workOrders.update(record.id, {
+          synced: false,
+          syncStatus,
+          lastError: failure.error,
+          retryCount,
+          updatedAt: new Date().toISOString()
+        });
+      })
+    );
+  });
+}
+
 async function safeReadError(response: Response) {
+  const body = await response.text();
   try {
-    const body = (await response.json()) as { error?: string };
-    return body.error;
+    const json = JSON.parse(body);
+    if (json?.error) {
+      return String(json.error);
+    }
+    return body;
   } catch {
-    return null;
+    return body;
   }
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unexpected sync error";
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }

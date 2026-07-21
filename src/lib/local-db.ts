@@ -3,13 +3,14 @@
 import Dexie, { type Table } from "dexie";
 import type { TripSyncRecord, WorkOrderSyncRecord } from "@/lib/sync-contracts";
 
-export type LocalSyncStatus = "pending" | "synced";
+export type LocalSyncStatus = "pending" | "failed" | "synced";
 
 export interface LocalSyncMetadata {
   synced: boolean;
   syncStatus: LocalSyncStatus;
   syncedAt?: string;
   lastError?: string;
+  retryCount: number;
 }
 
 export type OfflineTrip = TripSyncRecord & LocalSyncMetadata;
@@ -29,8 +30,8 @@ class AgroOfflineDatabase extends Dexie {
     super("agro-operativo-offline");
 
     this.version(1).stores({
-      trips: "id, syncStatus, updatedAt, licensePlate",
-      workOrders: "id, syncStatus, updatedAt, machinery"
+      trips: "id, syncStatus, updatedAt, licensePlate, retryCount",
+      workOrders: "id, syncStatus, updatedAt, machinery, retryCount"
     });
   }
 }
@@ -68,7 +69,8 @@ export function createOfflineTrip(draft: TripDraft): OfflineTrip {
     createdAt: now,
     updatedAt: now,
     synced: false,
-    syncStatus: "pending"
+    syncStatus: "pending",
+    retryCount: 0
   };
 }
 
@@ -89,7 +91,8 @@ export function createOfflineWorkOrder(draft: WorkOrderDraft): OfflineWorkOrder 
     createdAt: now,
     updatedAt: now,
     synced: false,
-    syncStatus: "pending"
+    syncStatus: "pending",
+    retryCount: 0
   };
 }
 
