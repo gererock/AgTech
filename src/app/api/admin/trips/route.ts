@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
+import { tripCreateSchema } from "@/lib/sync-contracts";
 
 const prisma = new PrismaClient();
 
@@ -70,18 +71,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
   }
 
-  const body = await request.json();
+  const rawBody = await request.json();
+  const parsed = tripCreateSchema.safeParse(rawBody);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Datos de viaje inválidos",
+        issues: parsed.error.flatten()
+      },
+      { status: 400 }
+    );
+  }
+
   const trip = await prisma.trip.create({
     data: {
-      licensePlate: body.licensePlate,
-      driverId: body.driverId || null,
-      driverName: body.driverName,
-      truck: body.truck,
-      product: body.product,
-      estimatedKg: Number(body.estimatedKg),
-      origin: body.origin,
-      destination: body.destination,
-      status: body.status
+      licensePlate: parsed.data.licensePlate,
+      driverId: parsed.data.driverId || null,
+      driverName: parsed.data.driverName,
+      truck: parsed.data.truck || null,
+      product: parsed.data.product,
+      estimatedKg: parsed.data.estimatedKg,
+      origin: parsed.data.origin || "Sin informar",
+      destination: parsed.data.destination || "Sin informar",
+      status: parsed.data.status
     },
     select: {
       id: true,

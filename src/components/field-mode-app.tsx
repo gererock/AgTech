@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { cn } from "@/lib/utils";
+import { tripCreateSchema, workOrderCreateSchema } from "@/lib/sync-contracts";
 
 type FieldMode = "trip" | "work-order";
 
@@ -55,20 +56,22 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     setFormError(null);
     setFeedback(null);
 
-    const estimatedKg = Number(tripForm.estimatedKg);
+    const payload = {
+      licensePlate: tripForm.licensePlate.trim(),
+      driverName: tripForm.driverName.trim(),
+      product: tripForm.product.trim(),
+      estimatedKg: Number(tripForm.estimatedKg)
+    };
 
-    if (!Number.isFinite(estimatedKg) || estimatedKg <= 0) {
-      setFormError("Ingresá kilos estimados válidos.");
+    const validation = tripCreateSchema.safeParse(payload);
+
+    if (!validation.success) {
+      setFormError(validation.error.errors[0]?.message ?? "Revisá los datos del viaje.");
       return;
     }
 
     try {
-      const result = await saveTrip({
-        licensePlate: tripForm.licensePlate,
-        driverName: tripForm.driverName,
-        product: tripForm.product,
-        estimatedKg
-      });
+      const result = await saveTrip(validation.data);
 
       setTripForm(initialTripForm);
       setFeedback(
@@ -86,36 +89,26 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     setFormError(null);
     setFeedback(null);
 
-    const initialHourMeter = Number(workOrderForm.initialHourMeter);
-    const finalHourMeter = Number(workOrderForm.finalHourMeter);
-    const hectaresWorked = Number(workOrderForm.hectaresWorked);
-    const fuelLiters = Number(workOrderForm.fuelLiters);
+    const payload = {
+      machinery: workOrderForm.machinery.trim(),
+      operatorName: workOrderForm.operatorName.trim(),
+      initialHourMeter: Number(workOrderForm.initialHourMeter),
+      finalHourMeter: Number(workOrderForm.finalHourMeter),
+      hectaresWorked: Number(workOrderForm.hectaresWorked),
+      fuelLiters: Number(workOrderForm.fuelLiters),
+      plot: workOrderForm.plot.trim() || undefined,
+      customer: workOrderForm.customer.trim() || undefined
+    };
 
-    if (
-      ![initialHourMeter, finalHourMeter, hectaresWorked, fuelLiters].every(
-        (value) => Number.isFinite(value) && value >= 0
-      )
-    ) {
-      setFormError("Revisá los valores numéricos del parte diario.");
-      return;
-    }
+    const validation = workOrderCreateSchema.safeParse(payload);
 
-    if (finalHourMeter < initialHourMeter) {
-      setFormError("El horómetro final no puede ser menor que el inicial.");
+    if (!validation.success) {
+      setFormError(validation.error.errors[0]?.message ?? "Revisá los datos del parte diario.");
       return;
     }
 
     try {
-      const result = await saveWorkOrder({
-        machinery: workOrderForm.machinery,
-        operatorName: workOrderForm.operatorName,
-        initialHourMeter,
-        finalHourMeter,
-        hectaresWorked,
-        fuelLiters,
-        plot: workOrderForm.plot,
-        customer: workOrderForm.customer
-      });
+      const result = await saveWorkOrder(validation.data);
 
       setWorkOrderForm(initialWorkOrderForm);
       setFeedback(

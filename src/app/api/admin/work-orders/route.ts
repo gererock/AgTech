@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
+import { workOrderCreateSchema } from "@/lib/sync-contracts";
 
 const prisma = new PrismaClient();
 
@@ -70,19 +71,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
   }
 
-  const body = await request.json();
+  const rawBody = await request.json();
+  const parsed = workOrderCreateSchema.safeParse(rawBody);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Datos de parte inválidos",
+        issues: parsed.error.flatten()
+      },
+      { status: 400 }
+    );
+  }
+
   const workOrder = await prisma.workOrder.create({
     data: {
-      machinery: body.machinery,
-      operatorId: body.operatorId || null,
-      operatorName: body.operatorName,
-      initialHourMeter: Number(body.initialHourMeter),
-      finalHourMeter: Number(body.finalHourMeter),
-      hectaresWorked: Number(body.hectaresWorked),
-      fuelLiters: Number(body.fuelLiters),
-      status: body.status,
-      plot: body.plot,
-      customer: body.customer
+      machinery: parsed.data.machinery,
+      operatorId: parsed.data.operatorId || null,
+      operatorName: parsed.data.operatorName,
+      initialHourMeter: parsed.data.initialHourMeter,
+      finalHourMeter: parsed.data.finalHourMeter,
+      hectaresWorked: parsed.data.hectaresWorked,
+      fuelLiters: parsed.data.fuelLiters,
+      status: parsed.data.status,
+      plot: parsed.data.plot || "Sin informar",
+      customer: parsed.data.customer || "Sin informar"
     },
     select: {
       id: true,
