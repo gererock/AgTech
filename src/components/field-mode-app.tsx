@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { CheckCircle2, Fuel, LayoutDashboard, Save, Tractor, Truck } from "lucide-react";
 import { OfflineStatusBanner } from "@/components/offline-status-banner";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,8 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [mode, setMode] = useState<FieldMode>(initialMode);
   const [tripForm, setTripForm] = useState(initialTripForm);
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
+  const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -50,6 +52,29 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     saveWorkOrder,
     syncPending
   } = useOfflineSync();
+
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const [customersResponse, machineriesResponse] = await Promise.all([
+          fetch("/api/admin/customers"),
+          fetch("/api/admin/machineries")
+        ]);
+
+        if (customersResponse.ok) {
+          setCustomers(await customersResponse.json());
+        }
+        if (machineriesResponse.ok) {
+          setMachineries(await machineriesResponse.json());
+        }
+      } catch {
+        setCustomers([]);
+        setMachineries([]);
+      }
+    };
+
+    void loadCatalogs();
+  }, []);
 
   const handleTripSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -290,15 +315,20 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Maquinaria" htmlFor="machinery" className="sm:col-span-2">
-                <Input
+                <select
                   id="machinery"
                   required
-                  placeholder="Tractor, pulverizadora..."
                   value={workOrderForm.machinery}
                   onChange={(event) =>
                     setWorkOrderForm((current) => ({ ...current, machinery: event.target.value }))
                   }
-                />
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar maquinaria</option>
+                  {machineries.map((machinery) => (
+                    <option key={machinery.id} value={machinery.name}>{machinery.name}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="Operador de maquina" htmlFor="operatorName" className="sm:col-span-2">
                 <Input
@@ -385,14 +415,19 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                 />
               </Field>
               <Field label="Cliente" htmlFor="customer">
-                <Input
+                <select
                   id="customer"
-                  placeholder="Estancia / empresa"
                   value={workOrderForm.customer}
                   onChange={(event) =>
                     setWorkOrderForm((current) => ({ ...current, customer: event.target.value }))
                   }
-                />
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar cliente</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.name}>{customer.name}</option>
+                  ))}
+                </select>
               </Field>
             </div>
 

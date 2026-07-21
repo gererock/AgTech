@@ -15,6 +15,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const workOrder = await prisma.workOrder.update({
     where: { id: params.id },
     data: {
+      machineryId: body.machineryId || null,
       machinery: body.machinery,
       operatorId: body.operatorId || null,
       operatorName: body.operatorName,
@@ -23,10 +24,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       hectaresWorked: Number(body.hectaresWorked),
       fuelLiters: Number(body.fuelLiters),
       plot: body.plot,
-      customer: body.customer
+      customerId: body.customerId || null,
+      customer: body.customer,
+      status: body.status
     },
     select: {
       id: true,
+      machineryId: true,
       machinery: true,
       operatorName: true,
       operatorId: true,
@@ -35,7 +39,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       hectaresWorked: true,
       fuelLiters: true,
       plot: true,
-      customer: true
+      customerId: true,
+      customer: true,
+      status: true
     }
   });
 

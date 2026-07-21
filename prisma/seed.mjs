@@ -33,6 +33,46 @@ const users = [
   }
 ];
 
+const customers = [
+  {
+    id: "1f7c7d83-6b5f-4f91-95e3-18191d4b0360",
+    name: "Agroservicios Norte",
+    email: "ventas@agroserviciosnorte.com",
+    phone: "341-555-0101",
+    address: "Ruta 9 Km 120",
+    documentNumber: "30-12345678-9",
+    active: true
+  },
+  {
+    id: "f8cf5801-2f69-4b52-a6ec-87aa8171832f",
+    name: "Estancia Las Talas",
+    email: "operaciones@lastalas.com",
+    phone: "341-555-0144",
+    address: "Paraje El Chañar",
+    documentNumber: "30-87654321-0",
+    active: true
+  }
+];
+
+const machineries = [
+  {
+    id: "8be32fa8-7c89-4c7c-8dae-7aa2e26e3d8f",
+    name: "Pulverizadora Pla MAP II",
+    type: "Pulverizadora",
+    brand: "Pla",
+    identifier: "PLA-002",
+    active: true
+  },
+  {
+    id: "d3d98f19-b89e-4fbb-bf6f-8fb9dd0d6c8f",
+    name: "Tractor John Deere 7215J",
+    type: "Tractor",
+    brand: "John Deere",
+    identifier: "JD-7215J",
+    active: true
+  }
+];
+
 const trips = [
   {
     id: "0f54c716-6d07-40dc-b40c-1193bb0f316a",
@@ -71,6 +111,7 @@ const trips = [
 const workOrders = [
   {
     id: "2cefb24a-dc77-412d-a910-e6dd9f7cf15c",
+    machineryId: "8be32fa8-7c89-4c7c-8dae-7aa2e26e3d8f",
     machinery: "Pulverizadora Pla MAP II",
     operatorId: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
     operatorName: "Nicolas Duarte",
@@ -79,12 +120,14 @@ const workOrders = [
     hectaresWorked: 146,
     fuelLiters: 980,
     plot: "Lote 12",
+    customerId: "1f7c7d83-6b5f-4f91-95e3-18191d4b0360",
     customer: "Agroservicios Norte",
     clientCreatedAt: new Date("2026-07-19T10:20:00.000Z"),
     syncedAt: new Date("2026-07-19T10:35:00.000Z")
   },
   {
     id: "54a81258-b18b-445e-879a-54a9fbe85fc4",
+    machineryId: "d3d98f19-b89e-4fbb-bf6f-8fb9dd0d6c8f",
     machinery: "Tractor John Deere 7215J",
     operatorId: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
     operatorName: "Eva Molina",
@@ -93,6 +136,7 @@ const workOrders = [
     hectaresWorked: 82,
     fuelLiters: 720,
     plot: "Lote 4",
+    customerId: "f8cf5801-2f69-4b52-a6ec-87aa8171832f",
     customer: "Estancia Las Talas",
     clientCreatedAt: new Date("2026-07-19T09:30:00.000Z"),
     syncedAt: new Date("2026-07-19T09:50:00.000Z")
@@ -126,6 +170,22 @@ async function main() {
       where: { email: user.email },
       update: user,
       create: user
+    });
+  }
+
+  for (const customer of customers) {
+    await prisma.customer.upsert({
+      where: { id: customer.id },
+      update: customer,
+      create: customer
+    });
+  }
+
+  for (const machinery of machineries) {
+    await prisma.machinery.upsert({
+      where: { id: machinery.id },
+      update: machinery,
+      create: machinery
     });
   }
 

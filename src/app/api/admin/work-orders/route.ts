@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
+      machineryId: true,
       machinery: true,
       operatorName: true,
       initialHourMeter: true,
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
       hectaresWorked: true,
       fuelLiters: true,
       plot: true,
+      customerId: true,
       customer: true,
       updatedAt: true
     }
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
 
   const workOrder = await prisma.workOrder.create({
     data: {
+      machineryId: rawBody.machineryId || null,
       machinery: parsed.data.machinery,
       operatorId: parsed.data.operatorId || null,
       operatorName: parsed.data.operatorName,
@@ -88,10 +91,12 @@ export async function POST(request: Request) {
       hectaresWorked: parsed.data.hectaresWorked,
       fuelLiters: parsed.data.fuelLiters,
       plot: parsed.data.plot || "Sin informar",
+      customerId: rawBody.customerId || null,
       customer: parsed.data.customer || "Sin informar"
     },
     select: {
       id: true,
+      machineryId: true,
       machinery: true,
       operatorName: true,
       initialHourMeter: true,
@@ -99,6 +104,7 @@ export async function POST(request: Request) {
       hectaresWorked: true,
       fuelLiters: true,
       plot: true,
+      customerId: true,
       customer: true,
       updatedAt: true
     }
