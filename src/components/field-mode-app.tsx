@@ -21,7 +21,10 @@ const initialTripForm = {
   licensePlate: "",
   driverName: "",
   product: "",
-  estimatedKg: ""
+  estimatedKg: "",
+  fuelLiters: "",
+  fuelItemId: "",
+  agroItemId: ""
 };
 
 const initialWorkOrderForm = {
@@ -31,9 +34,15 @@ const initialWorkOrderForm = {
   finalHourMeter: "",
   hectaresWorked: "",
   fuelLiters: "",
+  fuelItemId: "",
   plot: "",
-  customer: ""
+  customer: "",
+  chemicals: [
+    { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+  ]
 };
+
+const AGRO_UNIT_OPTIONS = ["L", "KG", "G", "ML", "M3"] as const;
 
 export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [mode, setMode] = useState<FieldMode>(initialMode);
@@ -41,6 +50,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
+  const [inventoryItems, setInventoryItems] = useState<Array<{ id: string; name: string; type: "FUEL" | "CHEMICAL" | "AGRO"; unit: string; quantity: number }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -56,9 +66,10 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [customersResponse, machineriesResponse] = await Promise.all([
+        const [customersResponse, machineriesResponse, inventoryResponse] = await Promise.all([
           fetch("/api/admin/customers"),
-          fetch("/api/admin/machineries")
+          fetch("/api/admin/machineries"),
+          fetch("/api/admin/inventory")
         ]);
 
         if (customersResponse.ok) {
@@ -67,9 +78,13 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
         if (machineriesResponse.ok) {
           setMachineries(await machineriesResponse.json());
         }
+        if (inventoryResponse.ok) {
+          setInventoryItems(await inventoryResponse.json());
+        }
       } catch {
         setCustomers([]);
         setMachineries([]);
+        setInventoryItems([]);
       }
     };
 
@@ -85,7 +100,10 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
       licensePlate: tripForm.licensePlate.trim(),
       driverName: tripForm.driverName.trim(),
       product: tripForm.product.trim(),
-      estimatedKg: Number(tripForm.estimatedKg)
+      estimatedKg: Number(tripForm.estimatedKg),
+      fuelLiters: Number(tripForm.fuelLiters) || 0,
+      fuelItemId: tripForm.fuelItemId || undefined,
+      agroItemId: tripForm.agroItemId || undefined
     };
 
     const validation = tripCreateSchema.safeParse(payload);
@@ -121,8 +139,17 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
       finalHourMeter: Number(workOrderForm.finalHourMeter),
       hectaresWorked: Number(workOrderForm.hectaresWorked),
       fuelLiters: Number(workOrderForm.fuelLiters),
+      fuelItemId: workOrderForm.fuelItemId || undefined,
       plot: workOrderForm.plot.trim() || undefined,
-      customer: workOrderForm.customer.trim() || undefined
+      customer: workOrderForm.customer.trim() || undefined,
+      chemicals: (workOrderForm.chemicals ?? [])
+        .filter((item) => item.product.trim() !== "")
+        .map((item) => ({
+          inventoryItemId: item.inventoryItemId || undefined,
+          product: item.product.trim(),
+          quantity: Number(item.quantity),
+          unit: item.unit.trim() || "L"
+        }))
     };
 
     const validation = workOrderCreateSchema.safeParse(payload);
@@ -144,6 +171,36 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     } catch (error) {
       setFormError(getErrorMessage(error));
     }
+  };
+
+  const fuelItems = inventoryItems.filter((item) => item.type === "FUEL");
+  const chemicalItems = inventoryItems.filter((item) => item.type === "CHEMICAL");
+  const agroItems = inventoryItems.filter((item) => item.type === "AGRO");
+
+  const addChemicalLine = () => {
+    setWorkOrderForm((current) => ({
+      ...current,
+      chemicals: [
+        ...current.chemicals,
+        { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+      ]
+    }));
+  };
+
+  const updateChemicalLine = (index: number, field: string, value: string) => {
+    setWorkOrderForm((current) => ({
+      ...current,
+      chemicals: current.chemicals.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const removeChemicalLine = (index: number) => {
+    setWorkOrderForm((current) => ({
+      ...current,
+      chemicals: current.chemicals.filter((_, itemIndex) => itemIndex !== index)
+    }));
   };
 
   return (
@@ -277,6 +334,29 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   }
                 />
               </Field>
+              <Field label="Producto agro" htmlFor="agroItemId">
+                <select
+                  id="agroItemId"
+                  value={tripForm.agroItemId}
+                  onChange={(event) => {
+                    const selectedId = event.target.value;
+                    const selectedItem = agroItems.find((item) => item.id === selectedId);
+                    setTripForm((current) => ({
+                      ...current,
+                      agroItemId: selectedId,
+                      product: selectedItem?.name ?? current.product
+                    }));
+                  }}
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Sin seleccionar</option>
+                  {agroItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.quantity} {item.unit})
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Kg estimados" htmlFor="estimatedKg">
                 <Input
                   id="estimatedKg"
@@ -290,6 +370,37 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                     setTripForm((current) => ({ ...current, estimatedKg: event.target.value }))
                   }
                 />
+              </Field>
+              <Field label="Litros de gasoil" htmlFor="tripFuelLiters">
+                <Input
+                  id="tripFuelLiters"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.1"
+                  type="number"
+                  placeholder="0"
+                  value={tripForm.fuelLiters}
+                  onChange={(event) =>
+                    setTripForm((current) => ({ ...current, fuelLiters: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Tanque de combustible" htmlFor="tripFuelItemId">
+                <select
+                  id="tripFuelItemId"
+                  value={tripForm.fuelItemId}
+                  onChange={(event) =>
+                    setTripForm((current) => ({ ...current, fuelItemId: event.target.value }))
+                  }
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Sin especificar</option>
+                  {fuelItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.quantity} {item.unit})
+                    </option>
+                  ))}
+                </select>
               </Field>
             </div>
 
@@ -404,6 +515,23 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   }
                 />
               </Field>
+              <Field label="Tanque de combustible" htmlFor="workOrderFuelItemId">
+                <select
+                  id="workOrderFuelItemId"
+                  value={workOrderForm.fuelItemId}
+                  onChange={(event) =>
+                    setWorkOrderForm((current) => ({ ...current, fuelItemId: event.target.value }))
+                  }
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Sin especificar</option>
+                  {fuelItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.quantity} {item.unit})
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Lote" htmlFor="plot">
                 <Input
                   id="plot"
@@ -429,6 +557,83 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   ))}
                 </select>
               </Field>
+            </div>
+
+            <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-700">Productos químicos usados</p>
+                <button
+                  type="button"
+                  onClick={addChemicalLine}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Agregar químico
+                </button>
+              </div>
+              {workOrderForm.chemicals.map((chemical, index) => (
+                <div key={index} className="grid gap-3 sm:grid-cols-4">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`chemical-inventory-${index}`}>Químico</Label>
+                    <select
+                      id={`chemical-inventory-${index}`}
+                      value={chemical.inventoryItemId}
+                      onChange={(event) => {
+                        const inventoryItemId = event.target.value;
+                        const selectedItem = chemicalItems.find((item) => item.id === inventoryItemId);
+                        updateChemicalLine(index, "inventoryItemId", inventoryItemId);
+                        if (selectedItem) {
+                          updateChemicalLine(index, "product", selectedItem.name);
+                          updateChemicalLine(index, "unit", selectedItem.unit);
+                        }
+                      }}
+                      className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                    >
+                      <option value="">Seleccionar químico</option>
+                      {chemicalItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({item.quantity} {item.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor={`chemical-quantity-${index}`}>Cantidad</Label>
+                    <Input
+                      id={`chemical-quantity-${index}`}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="0.1"
+                      value={chemical.quantity}
+                      onChange={(event) => updateChemicalLine(index, "quantity", event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`chemical-unit-${index}`}>Unidad</Label>
+                    <select
+                      id={`chemical-unit-${index}`}
+                      value={chemical.unit}
+                      onChange={(event) => updateChemicalLine(index, "unit", event.target.value)}
+                      className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                    >
+                      {AGRO_UNIT_OPTIONS.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => removeChemicalLine(index)}
+                      className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <Button className="mt-6 w-full" size="lg" type="submit" disabled={isSyncing}>

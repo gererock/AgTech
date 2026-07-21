@@ -8,9 +8,9 @@ import { getRoleLabel, ROLE_OPTIONS } from "@/lib/role-labels";
 import { getTripStatusColorClassName, getTripStatusLabel, TRIP_STATUS_OPTIONS } from "@/lib/trip-status-labels";
 import { cn } from "@/lib/utils";
 
-const emptyForm: Record<string, string> = {};
+const emptyForm: Record<string, unknown> = {};
 
-export type EntityKind = "users" | "trips" | "work-orders" | "customers" | "machineries";
+export type EntityKind = "users" | "trips" | "work-orders" | "customers" | "machineries" | "inventory";
 
 type UserOption = {
   id: string;
@@ -36,6 +36,25 @@ type MachineryOption = {
   active: boolean;
 };
 
+type InventoryItemOption = {
+  id: string;
+  name: string;
+  type: "FUEL" | "CHEMICAL" | "AGRO";
+  unit: string;
+  quantity: number;
+  minQuantity: number;
+  active: boolean;
+};
+
+const UNIT_OPTIONS = ["L", "KG", "G", "ML", "M3"] as const;
+
+type ChemicalLine = {
+  inventoryItemId: string;
+  product: string;
+  quantity: string;
+  unit: string;
+};
+
 type FilterState = {
   search: string;
   status: string;
@@ -51,9 +70,10 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [machineries, setMachineries] = useState<MachineryOption[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const [form, setForm] = useState<Record<string, any>>(emptyForm);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [filters, setFilters] = useState<FilterState>({ search: "", status: "", date: "" });
@@ -119,11 +139,23 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   }, []);
 
+  const loadInventoryItems = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/inventory");
+      if (response.ok) {
+        setInventoryItems(await response.json());
+      }
+    } catch {
+      setInventoryItems([]);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsers();
     void loadCustomers();
     void loadMachineries();
-  }, [loadUsers, loadCustomers, loadMachineries]);
+    void loadInventoryItems();
+  }, [loadUsers, loadCustomers, loadMachineries, loadInventoryItems]);
 
   useEffect(() => {
     void loadItems();
@@ -171,7 +203,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
     const url = editingId ? `/api/admin/${kind}/${editingId}` : `/api/admin/${kind}`;
     const method = editingId ? "PATCH" : "POST";
-    const payload = buildPayload(kind, form, { customers, machineries });
+const payload = buildPayload(kind, form, { customers, machineries, inventoryItems });
 
     try {
       const response = await fetch(url, {
@@ -256,7 +288,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
             </div>
             <form onSubmit={handleSubmit} className="p-4 sm:p-6">
               <div className="grid gap-4 sm:grid-cols-2">
-                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions })}
+                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions, inventoryItems })}
                 <div className="sm:col-span-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button type="button" variant="outline" onClick={() => { resetForm(); setIsFormOpen(false); }} className="w-full sm:w-auto">Cancelar</Button>
                   <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
@@ -398,6 +430,25 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.active ? "Activo" : "Inactivo"}</span>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">{item.brand ?? "Sin marca"} · {item.identifier ?? "Sin identificador"}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+
+              {kind === "inventory" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.name}</p>
+                        <p className="text-sm text-slate-600">{item.type} · {item.unit}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.active ? "Activo" : "Inactivo"}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{item.quantity} / mínimo {item.minQuantity}</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
                       <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
@@ -563,6 +614,38 @@ export function EntityManager({ kind }: EntityManagerProps) {
                   </tbody>
                 </table>
               ) : null}
+
+              {kind === "inventory" ? (
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Nombre</th>
+                      <th className="py-2 pr-3">Tipo</th>
+                      <th className="py-2 pr-3">Cantidad</th>
+                      <th className="py-2 pr-3">Mínimo</th>
+                      <th className="py-2 pr-3">Estado</th>
+                      <th className="py-2 pr-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.name}</td>
+                        <td className="py-2 pr-3">{item.type === "FUEL" ? "Combustible" : item.type === "CHEMICAL" ? "Químico" : item.type}</td>
+                        <td className="py-2 pr-3">{item.quantity} {item.unit}</td>
+                        <td className="py-2 pr-3">{item.minQuantity} {item.unit}</td>
+                        <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
             </div>
           </div>
         )}
@@ -576,6 +659,7 @@ function getTitle(kind: EntityKind) {
   if (kind === "trips") return "Viajes";
   if (kind === "customers") return "Clientes";
   if (kind === "machineries") return "Maquinarias";
+  if (kind === "inventory") return "Inventario";
   return "Partes diarios";
 }
 
@@ -584,6 +668,7 @@ function getCreateButtonLabel(kind: EntityKind) {
   if (kind === "trips") return "Crear viaje";
   if (kind === "customers") return "Crear cliente";
   if (kind === "machineries") return "Crear maquinaria";
+  if (kind === "inventory") return "Crear producto de inventario";
   return "Crear parte diario";
 }
 
@@ -592,15 +677,16 @@ function getEditFormTitle(kind: EntityKind) {
   if (kind === "trips") return "Editar viaje";
   if (kind === "customers") return "Editar cliente";
   if (kind === "machineries") return "Editar maquinaria";
+  if (kind === "inventory") return "Editar producto de inventario";
   return "Editar parte diario";
 }
 
-function getInitialForm(kind: EntityKind): Record<string, string> {
+function getInitialForm(kind: EntityKind): Record<string, any> {
   if (kind === "users") {
     return { name: "", email: "", password: "", role: "ADMIN" };
   }
   if (kind === "trips") {
-    return { licensePlate: "", driverName: "", driverId: "", truck: "", product: "", estimatedKg: "", origin: "", destination: "", status: "PENDING" };
+    return { licensePlate: "", driverName: "", driverId: "", truck: "", product: "", estimatedKg: "", origin: "", destination: "", status: "PENDING", fuelItemId: "", agroItemId: "" };
   }
   if (kind === "customers") {
     return { name: "", email: "", phone: "", address: "", documentNumber: "", active: "true" };
@@ -608,10 +694,27 @@ function getInitialForm(kind: EntityKind): Record<string, string> {
   if (kind === "machineries") {
     return { name: "", type: "", brand: "", identifier: "", active: "true" };
   }
-  return { machineryId: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customerId: "" };
+  if (kind === "inventory") {
+    return { name: "", type: "FUEL", unit: "L", quantity: "", minQuantity: "", active: "true" };
+  }
+  return {
+    machineryId: "",
+    operatorName: "",
+    operatorId: "",
+    initialHourMeter: "",
+    finalHourMeter: "",
+    hectaresWorked: "",
+    fuelLiters: "",
+    fuelItemId: "",
+    plot: "",
+    customerId: "",
+    chemicals: [
+      { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+    ]
+  };
 }
 
-function buildFormState(kind: EntityKind, item: any): Record<string, string> {
+function buildFormState(kind: EntityKind, item: any): Record<string, any> {
   if (kind === "users") {
     return { name: item.name, email: item.email, password: "", role: item.role };
   }
@@ -625,7 +728,9 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
       estimatedKg: String(item.estimatedKg),
       origin: item.origin,
       destination: item.destination,
-      status: item.status
+      status: item.status,
+      fuelItemId: item.fuelItemId ?? "",
+      agroItemId: item.agroItemId ?? ""
     };
   }
   if (kind === "customers") {
@@ -647,6 +752,16 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
       active: item.active ? "true" : "false"
     };
   }
+  if (kind === "inventory") {
+    return {
+      name: item.name,
+      type: item.type,
+      unit: item.unit,
+      quantity: String(item.quantity ?? ""),
+      minQuantity: String(item.minQuantity ?? ""),
+      active: item.active ? "true" : "false"
+    };
+  }
   return {
     machineryId: item.machineryId ?? "",
     operatorName: item.operatorName,
@@ -655,12 +770,19 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
     finalHourMeter: String(item.finalHourMeter),
     hectaresWorked: String(item.hectaresWorked),
     fuelLiters: String(item.fuelLiters),
+    fuelItemId: item.fuelItemId ?? "",
     plot: item.plot,
-    customerId: item.customerId ?? ""
+    customerId: item.customerId ?? "",
+    chemicals: (item.chemicals ?? []).map((chemical: any) => ({
+      inventoryItemId: chemical.inventoryItemId ?? "",
+      product: chemical.product ?? "",
+      quantity: String(chemical.quantity ?? ""),
+      unit: chemical.unit ?? "L"
+    }))
   };
 }
 
-function validateForm(kind: EntityKind, form: Record<string, string>): string | null {
+function validateForm(kind: EntityKind, form: Record<string, any>): string | null {
   if (kind === "users") {
     if (!form.name?.trim()) return "El nombre es obligatorio";
     if (!form.email?.trim()) return "El email es obligatorio";
@@ -690,6 +812,19 @@ function validateForm(kind: EntityKind, form: Record<string, string>): string | 
     return null;
   }
 
+  if (kind === "inventory") {
+    if (!form.name?.trim()) return "El nombre es obligatorio";
+    if (!form.type?.trim()) return "El tipo es obligatorio";
+    if (!form.unit?.trim()) return "La unidad es obligatoria";
+    if (!form.quantity?.trim()) return "La cantidad es obligatoria";
+    const quantity = Number(form.quantity);
+    if (Number.isNaN(quantity) || quantity < 0) return "La cantidad debe ser un número válido";
+    if (!form.minQuantity?.trim()) return "La cantidad mínima es obligatoria";
+    const minQuantity = Number(form.minQuantity);
+    if (Number.isNaN(minQuantity) || minQuantity < 0) return "La cantidad mínima debe ser un número válido";
+    return null;
+  }
+
   if (!form.machineryId?.trim()) return "La maquinaria es obligatoria";
   if (!form.operatorId?.trim()) return "El operador es obligatorio";
   if (!form.initialHourMeter?.trim()) return "La hora inicial es obligatoria";
@@ -709,13 +844,24 @@ function validateForm(kind: EntityKind, form: Record<string, string>): string | 
   if (Number.isNaN(hectaresWorked) || hectaresWorked <= 0) return "Las hectáreas deben ser mayores a cero";
   if (Number.isNaN(fuelLiters) || fuelLiters <= 0) return "Los litros deben ser mayores a cero";
 
+  if (Array.isArray(form.chemicals)) {
+    for (const chemical of form.chemicals) {
+      if (chemical.product?.trim()) {
+        if (!chemical.quantity?.trim()) return "La cantidad del químico es obligatoria";
+        const quantity = Number(chemical.quantity);
+        if (Number.isNaN(quantity) || quantity <= 0) return "La cantidad del químico debe ser mayor a cero";
+        if (!chemical.unit?.trim()) return "La unidad del químico es obligatoria";
+      }
+    }
+  }
+
   return null;
 }
 
 function buildPayload(
   kind: EntityKind,
   form: Record<string, string>,
-  options: { customers: CustomerOption[]; machineries: MachineryOption[] }
+  options: { customers: CustomerOption[]; machineries: MachineryOption[]; inventoryItems?: InventoryItemOption[] }
 ) {
   if (kind === "users") {
     return {
@@ -735,6 +881,8 @@ function buildPayload(
       estimatedKg: Number(form.estimatedKg),
       origin: form.origin,
       destination: form.destination,
+      fuelItemId: form.fuelItemId || null,
+      agroItemId: form.agroItemId || null,
       status: form.status
     };
   }
@@ -758,6 +906,17 @@ function buildPayload(
     };
   }
 
+  if (kind === "inventory") {
+    return {
+      name: form.name,
+      type: form.type as "FUEL" | "CHEMICAL" | "AGRO",
+      unit: form.unit,
+      quantity: Number(form.quantity),
+      minQuantity: Number(form.minQuantity),
+      active: form.active === "true"
+    };
+  }
+
   const selectedMachinery = options.machineries.find((machinery) => machinery.id === form.machineryId);
   const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
 
@@ -770,9 +929,20 @@ function buildPayload(
     finalHourMeter: Number(form.finalHourMeter),
     hectaresWorked: Number(form.hectaresWorked),
     fuelLiters: Number(form.fuelLiters),
+    fuelItemId: form.fuelItemId || null,
     plot: form.plot,
     customerId: form.customerId || null,
-    customer: selectedCustomer?.name ?? form.customerId ?? ""
+    customer: selectedCustomer?.name ?? form.customerId ?? "",
+    chemicals: Array.isArray(form.chemicals)
+      ? form.chemicals
+          .filter((chemical: any) => chemical.product?.trim())
+          .map((chemical: any) => ({
+            inventoryItemId: chemical.inventoryItemId || null,
+            product: chemical.product,
+            quantity: Number(chemical.quantity),
+            unit: chemical.unit
+          }))
+      : []
   };
 }
 
@@ -785,7 +955,7 @@ function getStatusOptions(kind: EntityKind) {
     return TRIP_STATUS_OPTIONS;
   }
 
-  if (kind === "customers" || kind === "machineries") {
+  if (kind === "customers" || kind === "machineries" || kind === "inventory") {
     return [
       { value: "active", label: "Activos" },
       { value: "inactive", label: "Inactivos" }
@@ -797,9 +967,15 @@ function getStatusOptions(kind: EntityKind) {
 
 function renderFields(
   kind: EntityKind,
-  form: Record<string, string>,
-  setForm: Dispatch<SetStateAction<Record<string, string>>>,
-  options: { driverOptions: UserOption[]; operatorOptions: UserOption[]; customerOptions: CustomerOption[]; machineryOptions: MachineryOption[] }
+  form: Record<string, any>,
+  setForm: Dispatch<SetStateAction<Record<string, any>>>,
+  options: {
+    driverOptions: UserOption[];
+    operatorOptions: UserOption[];
+    customerOptions: CustomerOption[];
+    machineryOptions: MachineryOption[];
+    inventoryItems?: InventoryItemOption[];
+  }
 ) {
   if (kind === "users") {
     return (
@@ -902,6 +1078,40 @@ if (kind === "trips") {
           }
           required
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="fuelItemId">Tanque de combustible</Label>
+        <select
+          id="fuelItemId"
+          value={form.fuelItemId ?? ""}
+          onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))}
+          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+        >
+          <option value="">Seleccionar tanque</option>
+          {options.inventoryItems?.filter((item) => item.type === "FUEL").map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} ({item.quantity} {item.unit})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="agroItemId">Producto agro</Label>
+        <select
+          id="agroItemId"
+          value={form.agroItemId ?? ""}
+          onChange={(event) => setForm((current) => ({ ...current, agroItemId: event.target.value }))}
+          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+        >
+          <option value="">Seleccionar agro</option>
+          {options.inventoryItems?.filter((item) => item.type === "AGRO").map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} ({item.quantity} {item.unit})
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-2">
@@ -1008,6 +1218,211 @@ if (kind === "trips") {
             <option value="true">Activo</option>
             <option value="false">Inactivo</option>
           </select>
+        </div>
+      </>
+    );
+  }
+
+  if (kind === "inventory") {
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="inventoryName">Nombre</Label>
+          <Input id="inventoryName" value={form.name ?? ""} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="inventoryType">Tipo</Label>
+          <select id="inventoryType" value={form.type ?? "FUEL"} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="FUEL">Combustible</option>
+            <option value="CHEMICAL">Químico</option>
+            <option value="AGRO">Agro</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="inventoryUnit">Unidad</Label>
+          <select id="inventoryUnit" value={form.unit ?? "L"} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
+            {UNIT_OPTIONS.map((unit) => (
+              <option key={unit} value={unit}>{unit}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="inventoryQuantity">Cantidad</Label>
+          <Input id="inventoryQuantity" type="number" value={form.quantity ?? ""} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="inventoryMinQuantity">Cantidad mínima</Label>
+          <Input id="inventoryMinQuantity" type="number" value={form.minQuantity ?? ""} onChange={(event) => setForm((current) => ({ ...current, minQuantity: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="inventoryActive">Estado</Label>
+          <select id="inventoryActive" value={form.active ?? "true"} onChange={(event) => setForm((current) => ({ ...current, active: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </div>
+      </>
+    );
+  }
+
+  if (kind === "work-orders") {
+    const fuelItems = options.inventoryItems?.filter((item) => item.type === "FUEL") ?? [];
+    const chemicalItems = options.inventoryItems?.filter((item) => item.type === "CHEMICAL") ?? [];
+
+    const updateChemicalLine = (index: number, field: string, value: string) => {
+      setForm((current) => ({
+        ...current,
+        chemicals: current.chemicals.map((item: any, itemIndex: number) =>
+          itemIndex === index ? { ...item, [field]: value } : item
+        )
+      }));
+    };
+
+    const addChemicalLine = () => {
+      setForm((current) => ({
+        ...current,
+        chemicals: [
+          ...(current.chemicals ?? []),
+          { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+        ]
+      }));
+    };
+
+    const removeChemicalLine = (index: number) => {
+      setForm((current) => ({
+        ...current,
+        chemicals: (current.chemicals ?? []).filter((_: any, itemIndex: number) => itemIndex !== index)
+      }));
+    };
+
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="machinery">Maquinaria</Label>
+          <select id="machinery" value={form.machineryId ?? ""} onChange={(event) => setForm((current) => ({ ...current, machineryId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
+            <option value="">Seleccionar maquinaria</option>
+            {options.machineryOptions.map((machinery) => (
+              <option key={machinery.id} value={machinery.id}>{machinery.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="operatorId">Operador</Label>
+          <select id="operatorId" value={form.operatorId ?? ""} onChange={(event) => setForm((current) => ({ ...current, operatorId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
+            <option value="">Seleccionar operador</option>
+            {options.operatorOptions.map((user) => (
+              <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="initialHourMeter">H. inicial</Label>
+          <Input id="initialHourMeter" type="number" value={form.initialHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, initialHourMeter: event.target.value }))} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="finalHourMeter">H. final</Label>
+          <Input id="finalHourMeter" type="number" value={form.finalHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, finalHourMeter: event.target.value }))} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="hectaresWorked">Ha trabajadas</Label>
+          <Input id="hectaresWorked" type="number" value={form.hectaresWorked ?? ""} onChange={(event) => setForm((current) => ({ ...current, hectaresWorked: event.target.value }))} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="fuelLiters">Litros</Label>
+          <Input id="fuelLiters" type="number" value={form.fuelLiters ?? ""} onChange={(event) => setForm((current) => ({ ...current, fuelLiters: event.target.value }))} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="fuelItemId">Tanque de combustible</Label>
+          <select id="fuelItemId" value={form.fuelItemId ?? ""} onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="">Seleccionar tanque</option>
+            {fuelItems.map((item) => (
+              <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="plot">Lote</Label>
+          <Input id="plot" value={form.plot ?? ""} onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="customerId">Cliente</Label>
+          <select id="customerId" value={form.customerId ?? ""} onChange={(event) => setForm((current) => ({ ...current, customerId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
+            <option value="">Seleccionar cliente</option>
+            {options.customerOptions.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-700">Productos químicos usados</p>
+            <button
+              type="button"
+              onClick={addChemicalLine}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Agregar químico
+            </button>
+          </div>
+          {(form.chemicals ?? []).map((chemical: any, index: number) => (
+            <div key={index} className="grid gap-3 sm:grid-cols-4">
+              <div className="sm:col-span-2">
+                <Label htmlFor={`chemical-inventory-${index}`}>Químico</Label>
+                <select
+                  id={`chemical-inventory-${index}`}
+                  value={chemical.inventoryItemId ?? ""}
+                  onChange={(event) => {
+                    const inventoryItemId = event.target.value;
+                    const selectedItem = chemicalItems.find((item) => item.id === inventoryItemId);
+                    updateChemicalLine(index, "inventoryItemId", inventoryItemId);
+                    if (selectedItem) {
+                      updateChemicalLine(index, "product", selectedItem.name);
+                      updateChemicalLine(index, "unit", selectedItem.unit);
+                    }
+                  }}
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar químico</option>
+                  {chemicalItems.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor={`chemical-quantity-${index}`}>Cantidad</Label>
+                <Input
+                  id={`chemical-quantity-${index}`}
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={chemical.quantity ?? ""}
+                  onChange={(event) => updateChemicalLine(index, "quantity", event.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor={`chemical-unit-${index}`}>Unidad</Label>
+                <Input id={`chemical-unit-${index}`} value={chemical.unit ?? ""} onChange={(event) => updateChemicalLine(index, "unit", event.target.value)} />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => removeChemicalLine(index)}
+                  className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </>
     );
