@@ -60,7 +60,8 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
   const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: AppRole } | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileProfileMenuRef = useRef<HTMLDivElement>(null);
+  const desktopProfileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -84,7 +85,11 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideMobileMenu = mobileProfileMenuRef.current?.contains(target);
+      const isInsideDesktopMenu = desktopProfileMenuRef.current?.contains(target);
+
+      if (!isInsideMobileMenu && !isInsideDesktopMenu) {
         setIsProfileMenuOpen(false);
       }
     };
@@ -121,7 +126,15 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             <button
               type="button"
               onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100"
+              className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 lg:hidden"
+              aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 lg:flex"
               aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
             >
               {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -181,10 +194,62 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               />
             ) : null}
           </nav>
+          {profile ? (
+            <div className="border-t border-slate-200 p-3 lg:hidden" ref={mobileProfileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((open) => !open)}
+                className="flex w-full items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-black text-white">
+                  {profile.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-slate-900">{profile.name}</p>
+                  <p className="truncate text-xs font-bold text-slate-600">{profile.email}</p>
+                </div>
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div className="mt-2 rounded-md border border-slate-200 bg-white p-2 shadow-sm">
+                  <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+                    <p className="font-black text-slate-900">{profile.name}</p>
+                    <p className="truncate text-slate-600">{profile.email}</p>
+                    <p className="mt-1 text-xs font-bold uppercase text-teal-700">{profile.role}</p>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Cerrar sesión
+                    </button>
+                    <Link
+                      href="/"
+                      className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Modo campo
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </aside>
 
         <main id="summary" className="min-w-0 flex-1">
-          <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:px-6">
+          <header className="relative sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:px-6">
+            {isSidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+                className="absolute right-3 top-3 z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 lg:hidden"
+                aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </button>
+            ) : null}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-extrabold uppercase text-teal-700">Panel administrativo</p>
@@ -203,20 +268,12 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-                  className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 lg:hidden"
-                  aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
-                >
-                  {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </button>
                 <Badge tone={overview.source === "database" ? "teal" : "amber"} className="w-full justify-center sm:w-auto">
                   {overview.source === "database" ? "Datos reales" : "Datos demo"}
                 </Badge>
                 <Badge tone="slate" className="w-full justify-center sm:w-auto">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
                 {profile ? (
-                  <div className="relative" ref={profileMenuRef}>
+                  <div className="relative hidden lg:block" ref={desktopProfileMenuRef}>
                     <button
                       type="button"
                       onClick={() => setIsProfileMenuOpen((open) => !open)}
