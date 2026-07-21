@@ -10,7 +10,7 @@
     "lint": "next lint",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:create-local": "powershell -ExecutionPolicy Bypass -File scripts/setup-local-postgres.ps1",
+    "db:create-local": "node scripts/setup-local-postgres.mjs",
     "db:setup": "docker compose up -d db && prisma migrate dev && prisma db seed",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",

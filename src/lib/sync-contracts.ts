@@ -48,9 +48,44 @@ export const workOrderSyncPayloadSchema = z.object({
   records: z.array(workOrderSyncRecordSchema).max(100)
 });
 
+export type SyncFailure = {
+  id: string;
+  error: string;
+};
+
+export const tripCreateSchema = z.object({
+  truck: optionalTextSchema,
+  licensePlate: z.string().trim().min(1).max(20),
+  driverId: optionalUuidSchema,
+  driverName: z.string().trim().min(1).max(120),
+  origin: optionalTextSchema,
+  destination: optionalTextSchema,
+  product: z.string().trim().min(1).max(120),
+  estimatedKg: z.coerce.number().int().positive(),
+  status: z.enum(["PENDING", "IN_TRANSIT", "COMPLETED"]).default("PENDING")
+});
+
+export const workOrderCreateSchema = z
+  .object({
+    machinery: z.string().trim().min(1).max(120),
+    operatorId: optionalUuidSchema,
+    operatorName: z.string().trim().min(1).max(120),
+    initialHourMeter: z.coerce.number().nonnegative(),
+    finalHourMeter: z.coerce.number().nonnegative(),
+    hectaresWorked: z.coerce.number().nonnegative(),
+    fuelLiters: z.coerce.number().nonnegative(),
+    plot: optionalTextSchema,
+    customer: optionalTextSchema
+  })
+  .refine((record) => record.finalHourMeter >= record.initialHourMeter, {
+    message: "El horómetro final no puede ser menor que el inicial.",
+    path: ["finalHourMeter"]
+  });
+
 export type TripSyncRecord = z.infer<typeof tripSyncRecordSchema>;
 export type WorkOrderSyncRecord = z.infer<typeof workOrderSyncRecordSchema>;
 
 export interface SyncResponse {
   syncedIds: string[];
+  failedRecords?: SyncFailure[];
 }

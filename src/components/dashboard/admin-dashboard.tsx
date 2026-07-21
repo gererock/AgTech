@@ -1,13 +1,19 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Building2,
   ClipboardList,
   Fuel,
   Gauge,
   LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Tractor,
   Truck,
@@ -24,10 +30,18 @@ import type {
   TripTableRow,
   WorkOrderTableRow
 } from "@/lib/dashboard-data";
+import { clearAuthSession } from "@/lib/auth";
+import { getRoleLabel } from "@/lib/role-labels";
+import { getTripStatusLabel } from "@/lib/trip-status-labels";
 import { cn } from "@/lib/utils";
+import { EntityManager } from "@/components/dashboard/entity-manager";
+import { DailyOpsView } from "@/components/dashboard/daily-ops-view";
+import type { AppUser } from "@/lib/authz";
 
 interface AdminDashboardProps {
   overview: DashboardOverview;
+  initialView?: string;
+  initialProfile?: AppUser | null;
 }
 
 const numberFormatter = new Intl.NumberFormat("es-AR", {
@@ -44,102 +58,416 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0
 });
 
-export function AdminDashboard({ overview }: AdminDashboardProps) {
+export function AdminDashboard({ overview, initialView = "summary", initialProfile = null }: AdminDashboardProps) {
+  const router = useRouter();
+  const [activeSection, setActiveSection] = useState(initialView);
+  const [profile, setProfile] = useState<AppUser | null>(initialProfile);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const mobileProfileMenuRef = useRef<HTMLDivElement>(null);
+  const desktopProfileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialProfile) {
+      return;
+    }
+
+    const loadProfile = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          router.replace("/login");
+          return;
+        }
+
+        const data = await response.json();
+        setProfile(data.user);
+      } catch (error) {
+        console.error(error);
+        router.replace("/login");
+      }
+    };
+
+    loadProfile();
+  }, [initialProfile, router]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const isInsideMobileMenu = mobileProfileMenuRef.current?.contains(target);
+      const isInsideDesktopMenu = desktopProfileMenuRef.current?.contains(target);
+
+      if (!isInsideMobileMenu && !isInsideDesktopMenu) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      clearAuthSession();
+      router.replace("/login");
+    }
+  };
+
+  const isDriver = profile?.role === "DRIVER";
+  const canViewSummary = !isDriver;
+  const canViewWorkOrders = !isDriver;
+  const canManageUsers = profile?.role === "ADMIN";
+  const canManageCatalogs = profile?.role === "ADMIN";
+  const canManageAllOperations = profile?.role === "ADMIN";
+
+  const handleSectionChange = (sectionId: string) => {
+    if (isDriver && (sectionId === "summary" || sectionId === "work-orders")) {
+      setActiveSection("trips");
+      return;
+    }
+
+    setActiveSection(sectionId);
+  };
+
+  useEffect(() => {
+    if (isDriver && (activeSection === "summary" || activeSection === "work-orders")) {
+      setActiveSection("trips");
+      router.replace("/dashboard?view=trips");
+    }
+  }, [activeSection, isDriver, router]);
+
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-          <div className="border-b border-slate-200 px-5 py-5">
-            <p className="text-xs font-extrabold uppercase text-teal-700">Agro Operativo</p>
-            <h1 className="mt-1 text-xl font-black">Backoffice</h1>
-          </div>
-          <nav className="grid gap-1 p-3 text-sm font-bold text-slate-700">
-            <SidebarItem icon={<LayoutDashboard className="h-4 w-4" />} label="Resumen" active />
-            <SidebarItem icon={<Truck className="h-4 w-4" />} label="Viajes" />
-            <SidebarItem icon={<Tractor className="h-4 w-4" />} label="Maquinaria" />
-            <SidebarItem icon={<Users className="h-4 w-4" />} label="Clientes" />
-            <SidebarItem icon={<RefreshCw className="h-4 w-4" />} label="Auditoria sync" />
-          </nav>
-          <div className="mt-auto border-t border-slate-200 p-4">
-            <Link
-              href="/"
-              className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-800 hover:bg-slate-50"
+    <div className="mobile-shell min-h-screen bg-slate-100 text-slate-950">
+      <div className="flex min-h-screen w-full flex-col lg:flex-row">
+        <aside className={cn("border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:min-h-screen lg:shrink-0 lg:border-b-0 lg:border-r lg:flex lg:flex-col", isSidebarCollapsed ? "w-full lg:w-20" : "w-full lg:w-64", !isSidebarCollapsed ? "block" : "hidden lg:flex")}> 
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5 sm:py-5">
+            <div className={cn("min-w-0", isSidebarCollapsed && "hidden")}> 
+              <p className="text-xs font-extrabold uppercase text-teal-700">Agro Operativo</p>
+              <h1 className="mt-1 text-xl font-black">Backoffice</h1>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 lg:hidden"
+              aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
             >
-              Modo campo
-            </Link>
+              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 lg:flex"
+              aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
           </div>
+          <nav className="grid gap-1 overflow-y-auto p-2 text-sm font-bold text-slate-700 sm:p-3" aria-label="Secciones del panel">
+            {canViewSummary ? (
+              <SidebarItem
+                icon={<LayoutDashboard className="h-4 w-4" />}
+                label="Resumen"
+                active={activeSection === "summary"}
+                onClick={() => handleSectionChange("summary")}
+                href="/dashboard?view=summary"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            <SidebarItem
+              icon={<Activity className="h-4 w-4" />}
+              label="Operación del día"
+              active={activeSection === "operations"}
+              onClick={() => handleSectionChange("operations")}
+              href="/dashboard?view=operations"
+              collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
+              icon={<Truck className="h-4 w-4" />}
+              label="Viajes"
+              active={activeSection === "trips"}
+              onClick={() => handleSectionChange("trips")}
+              href="/dashboard?view=trips"
+              collapsed={isSidebarCollapsed}
+            />
+            {canViewWorkOrders ? (
+              <SidebarItem
+                icon={<Tractor className="h-4 w-4" />}
+                label="Partes"
+                active={activeSection === "work-orders"}
+                onClick={() => handleSectionChange("work-orders")}
+                href="/dashboard?view=work-orders"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            {canManageCatalogs ? (
+              <SidebarItem
+                icon={<Building2 className="h-4 w-4" />}
+                label="Clientes"
+                active={activeSection === "customers"}
+                onClick={() => handleSectionChange("customers")}
+                href="/dashboard?view=customers"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            {canManageCatalogs ? (
+              <SidebarItem
+                icon={<Tractor className="h-4 w-4" />}
+                label="Maquinarias"
+                active={activeSection === "machineries"}
+                onClick={() => handleSectionChange("machineries")}
+                href="/dashboard?view=machineries"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            {canManageUsers ? (
+              <SidebarItem
+                icon={<Users className="h-4 w-4" />}
+                label="Usuarios"
+                active={activeSection === "users"}
+                onClick={() => handleSectionChange("users")}
+                href="/dashboard?view=users"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            {canManageAllOperations ? (
+              <SidebarItem
+                icon={<RefreshCw className="h-4 w-4" />}
+                label="Auditoria sync"
+                active={activeSection === "sync-audit"}
+                onClick={() => handleSectionChange("sync-audit")}
+                href="/dashboard?view=sync-audit"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+          </nav>
+          {profile ? (
+            <div className="border-t border-slate-200 p-3 lg:hidden" ref={mobileProfileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((open) => !open)}
+                className="flex w-full items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-black text-white">
+                  {profile.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-slate-900">{profile.name}</p>
+                  <p className="truncate text-xs font-bold text-slate-600">{profile.email}</p>
+                </div>
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div className="mt-2 rounded-md border border-slate-200 bg-white p-2 shadow-sm">
+                  <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+                    <p className="font-black text-slate-900">{profile.name}</p>
+                    <p className="truncate text-slate-600">{profile.email}</p>
+                    <p className="mt-1 text-xs font-bold text-teal-700">{getRoleLabel(profile.role)}</p>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Cerrar sesión
+                    </button>
+                    <Link
+                      href="/"
+                      className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Modo campo
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </aside>
 
-        <main className="min-w-0 flex-1">
-          <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:px-6">
+        <main id="summary" className="min-w-0 flex-1">
+          <header className="relative sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:px-6">
+            {isSidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+                className="absolute right-3 top-3 z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 lg:hidden"
+                aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </button>
+            ) : null}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-extrabold uppercase text-teal-700">Panel administrativo</p>
-                <h2 className="text-2xl font-black tracking-normal">Operación sincronizada</h2>
+                <h2 className="text-xl font-black tracking-normal sm:text-2xl">
+                  {activeSection === "summary"
+                    ? "Operación sincronizada"
+                    : activeSection === "operations"
+                      ? "Operación del día"
+                      : activeSection === "trips"
+                        ? "Viajes"
+                        : activeSection === "work-orders"
+                          ? "Partes diarios"
+                          : activeSection === "users"
+                            ? "Usuarios"
+                            : activeSection === "customers"
+                              ? "Clientes"
+                              : activeSection === "machineries"
+                                ? "Maquinarias"
+                                : "Auditoría de sincronización"}
+                </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={overview.source === "database" ? "teal" : "amber"}>
-                  {overview.source === "database" ? "Datos reales" : "Datos demo"}
+                <Badge tone="teal" className="w-full justify-center sm:w-auto">
+                  Datos reales
                 </Badge>
-                <Badge tone="slate">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
+                <Badge tone="slate" className="w-full justify-center sm:w-auto">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
+                {profile ? (
+                  <div className="relative hidden lg:block" ref={desktopProfileMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileMenuOpen((open) => !open)}
+                      className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 max-sm:w-full max-sm:justify-start"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-black text-white">
+                        {profile.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900">{profile.name}</p>
+                        <p className="truncate text-xs font-bold text-slate-600">{profile.email}</p>
+                      </div>
+                    </button>
+
+                    {isProfileMenuOpen ? (
+                      <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+                        <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+                          <p className="font-black text-slate-900">{profile.name}</p>
+                          <p className="truncate text-slate-600">{profile.email}</p>
+                          <p className="mt-1 text-xs font-bold text-teal-700">{getRoleLabel(profile.role)}</p>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                          >
+                            Cerrar sesión
+                          </button>
+                          <Link
+                            href="/"
+                            className="flex w-full items-center justify-start rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                          >
+                            Modo campo
+                          </Link>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           </header>
 
-          <div className="grid gap-5 px-4 py-5 lg:px-6">
-            <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {overview.metrics.map((metric) => (
-                <MetricCard key={metric.label} metric={metric} />
-              ))}
-            </section>
-
-            <section className="grid gap-5 xl:grid-cols-[1fr_1.45fr]">
-              <Panel title="Estado de viajes" icon={<Truck className="h-5 w-5" />}>
-                <div className="grid gap-4">
-                  {overview.tripStatus.map((slice) => (
-                    <StatusBar key={slice.label} slice={slice} />
+          <div className="grid gap-5 px-3 py-4 sm:px-4 lg:px-6 lg:py-5">
+            {activeSection === "summary" && canViewSummary ? (
+              <>
+                <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {overview.metrics.map((metric) => (
+                    <MetricCard key={metric.label} metric={metric} />
                   ))}
-                </div>
-              </Panel>
+                </section>
 
-              <Panel title="Costo operativo por maquinaria" icon={<Fuel className="h-5 w-5" />}>
-                <FuelReport rows={overview.fuelReport} />
-              </Panel>
-            </section>
+                <section id="trips" className="grid gap-5 2xl:grid-cols-[1fr_1.45fr]">
+                  <Panel title="Estado de viajes" icon={<Truck className="h-5 w-5" />}>
+                    <div className="grid gap-4">
+                      {overview.tripStatus.map((slice) => (
+                        <StatusBar key={slice.label} slice={slice} />
+                      ))}
+                    </div>
+                  </Panel>
 
-            <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
-              <Panel title="Viajes recientes" icon={<ClipboardList className="h-5 w-5" />}>
-                <TripsTable rows={overview.recentTrips} />
-              </Panel>
+                  <Panel title="Costo operativo por maquinaria" icon={<Fuel className="h-5 w-5" />}>
+                    <FuelReport rows={overview.fuelReport} />
+                  </Panel>
+                </section>
 
-              <Panel title="Partes diarios" icon={<Gauge className="h-5 w-5" />}>
-                <WorkOrdersTable rows={overview.recentWorkOrders} />
-              </Panel>
-            </section>
+                <section className="grid gap-5 2xl:grid-cols-[1.3fr_1fr]">
+                  <Panel title="Viajes recientes" icon={<ClipboardList className="h-5 w-5" />}>
+                    <TripsTable rows={overview.recentTrips} />
+                  </Panel>
 
-            <section className="grid gap-5 xl:grid-cols-3">
-              <Panel title="Choferes" icon={<Users className="h-5 w-5" />}>
-                <SimpleList
-                  rows={overview.drivers.map((driver) => ({
-                    title: driver.name,
-                    detail: `${driver.trips} viajes registrados`,
-                    meta: driver.email
-                  }))}
-                />
-              </Panel>
+                  <Panel title="Partes diarios" icon={<Gauge className="h-5 w-5" />}>
+                    <WorkOrdersTable rows={overview.recentWorkOrders} />
+                  </Panel>
+                </section>
 
-              <Panel title="Maquinarias" icon={<Tractor className="h-5 w-5" />}>
-                <AssetList rows={overview.assets} />
-              </Panel>
+                <section className="grid gap-5 2xl:grid-cols-3">
+                  <Panel title="Conductores" icon={<Users className="h-5 w-5" />}>
+                    <SimpleList
+                      rows={overview.drivers.map((driver) => ({
+                        title: driver.name,
+                        detail: `${driver.trips} viajes registrados`,
+                        meta: driver.email
+                      }))}
+                    />
+                  </Panel>
 
-              <Panel title="Clientes" icon={<BarChart3 className="h-5 w-5" />}>
-                <CustomerReport rows={overview.customerReport} />
-              </Panel>
-            </section>
+                  <Panel id="machinery" title="Maquinarias" icon={<Tractor className="h-5 w-5" />}>
+                    <AssetList rows={overview.assets} />
+                  </Panel>
 
-            <Panel title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
-              <SyncAudit rows={overview.syncAudit} />
-            </Panel>
+                  <Panel id="customers" title="Clientes" icon={<BarChart3 className="h-5 w-5" />}>
+                    <CustomerReport rows={overview.customerReport} />
+                  </Panel>
+                </section>
+
+                <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
+                  <SyncAudit rows={overview.syncAudit} />
+                </Panel>
+              </>
+            ) : null}
+
+            {activeSection === "operations" ? (
+              <DailyOpsView showWorkOrders={canViewWorkOrders} />
+            ) : null}
+
+            {activeSection === "trips" ? (
+              <div id="trips" className="scroll-mt-24">
+                <EntityManager kind="trips" />
+              </div>
+            ) : null}
+
+            {activeSection === "work-orders" && canViewWorkOrders ? (
+              <div id="work-orders" className="scroll-mt-24">
+                <EntityManager kind="work-orders" />
+              </div>
+            ) : null}
+
+            {activeSection === "customers" && canManageCatalogs ? (
+              <div id="customers" className="scroll-mt-24">
+                <EntityManager kind="customers" />
+              </div>
+            ) : null}
+
+            {activeSection === "machineries" && canManageCatalogs ? (
+              <div id="machineries" className="scroll-mt-24">
+                <EntityManager kind="machineries" />
+              </div>
+            ) : null}
+
+            {activeSection === "users" && canManageUsers ? (
+              <div id="users" className="scroll-mt-24">
+                <EntityManager kind="users" />
+              </div>
+            ) : null}
+
+            {activeSection === "sync-audit" && canManageAllOperations ? (
+              <Panel id="sync-audit" title="Auditoría de sincronización" icon={<RefreshCw className="h-5 w-5" />}>
+                <SyncAudit rows={overview.syncAudit} />
+              </Panel>
+            ) : null}
           </div>
         </main>
       </div>
@@ -150,22 +478,32 @@ export function AdminDashboard({ overview }: AdminDashboardProps) {
 function SidebarItem({
   icon,
   label,
-  active = false
+  active = false,
+  onClick,
+  href,
+  collapsed = false
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
+  onClick: () => void;
+  href: string;
+  collapsed?: boolean;
 }) {
   return (
-    <div
+    <Link
+      href={href}
+      onClick={onClick}
       className={cn(
-        "flex h-10 items-center gap-3 rounded-md px-3",
-        active ? "bg-teal-700 text-white" : "hover:bg-slate-100"
+        "flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-left",
+        active ? "bg-teal-700 text-white" : "hover:bg-slate-100",
+        collapsed && "justify-center px-2"
       )}
+      title={label}
     >
       {icon}
-      <span>{label}</span>
-    </div>
+      <span className={cn("truncate", collapsed && "sr-only")}>{label}</span>
+    </Link>
   );
 }
 
@@ -194,9 +532,9 @@ function MetricCard({ metric }: { metric: DashboardMetric }) {
   );
 }
 
-function Panel({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function Panel({ id, title, icon, children }: { id?: string; title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white shadow-sm">
+    <section id={id} className="scroll-mt-24 rounded-md border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="text-teal-700">{icon}</div>
@@ -265,33 +603,23 @@ function TripsTable({ rows }: { rows: TripTableRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-          <tr>
-            <th className="py-2 pr-3">Patente</th>
-            <th className="py-2 pr-3">Chofer</th>
-            <th className="py-2 pr-3">Producto</th>
-            <th className="py-2 pr-3">Kg</th>
-            <th className="py-2 pr-3">Estado</th>
-            <th className="py-2 pr-3">Destino</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td className="py-3 pr-3 font-black">{row.licensePlate}</td>
-              <td className="py-3 pr-3 font-bold text-slate-700">{row.driverName}</td>
-              <td className="py-3 pr-3">{row.product}</td>
-              <td className="py-3 pr-3">{integerFormatter.format(row.estimatedKg)}</td>
-              <td className="py-3 pr-3">
-                <TripStatusBadge status={row.status} />
-              </td>
-              <td className="py-3 pr-3 text-slate-600">{row.destination}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.id} className="rounded-md border border-slate-200 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-black">{row.licensePlate}</p>
+              <p className="text-sm text-slate-600">{row.driverName}</p>
+            </div>
+            <TripStatusBadge status={row.status} />
+          </div>
+          <div className="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+            <span>{row.product}</span>
+            <span className="sm:text-right">{integerFormatter.format(row.estimatedKg)} kg</span>
+            <span className="sm:col-span-2">{row.destination}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -399,50 +727,41 @@ function SyncAudit({ rows }: { rows: SyncAuditRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-          <tr>
-            <th className="py-2 pr-3">Estado</th>
-            <th className="py-2 pr-3">Entidad</th>
-            <th className="py-2 pr-3">Registro</th>
-            <th className="py-2 pr-3">Mensaje</th>
-            <th className="py-2 pr-3">Fecha</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td className="py-3 pr-3">
-                <Badge tone={row.status === "SUCCESS" ? "teal" : "red"}>
-                  {row.status === "SUCCESS" ? "OK" : "Revisar"}
-                </Badge>
-              </td>
-              <td className="py-3 pr-3 font-bold">{row.entityType === "TRIP" ? "Viaje" : "Parte"}</td>
-              <td className="py-3 pr-3 font-mono text-xs text-slate-600">{row.entityId ?? "Sin ID"}</td>
-              <td className="py-3 pr-3 text-slate-700">{row.message}</td>
-              <td className="py-3 pr-3 text-slate-600">{formatDateTime(row.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.id} className="rounded-md border border-slate-200 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Badge tone={row.status === "SUCCESS" ? "teal" : "red"}>
+              {row.status === "SUCCESS" ? "OK" : "Revisar"}
+            </Badge>
+            <span className="text-sm font-black text-slate-700">
+              {row.entityType === "TRIP" ? "Viaje" : "Parte"}
+            </span>
+          </div>
+          <div className="mt-2 space-y-1 text-sm text-slate-600">
+            <p className="font-mono text-xs">{row.entityId ?? "Sin ID"}</p>
+            <p>{row.message}</p>
+            <p className="text-xs font-bold text-slate-500">{formatDateTime(row.createdAt)}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 function TripStatusBadge({ status }: { status: TripTableRow["status"] }) {
   if (status === "COMPLETED") {
-    return <Badge tone="teal">Completado</Badge>;
+    return <Badge tone="teal">{getTripStatusLabel(status)}</Badge>;
   }
 
   if (status === "IN_TRANSIT") {
-    return <Badge tone="sky">En viaje</Badge>;
+    return <Badge tone="sky">{getTripStatusLabel(status)}</Badge>;
   }
 
-  return <Badge tone="amber">Pendiente</Badge>;
+  return <Badge tone="amber">{getTripStatusLabel(status)}</Badge>;
 }
 
-function Badge({ tone, children }: { tone: "teal" | "sky" | "amber" | "red" | "slate"; children: ReactNode }) {
+function Badge({ tone, children, className }: { tone: "teal" | "sky" | "amber" | "red" | "slate"; children: ReactNode; className?: string }) {
   return (
     <span
       className={cn(
@@ -451,7 +770,8 @@ function Badge({ tone, children }: { tone: "teal" | "sky" | "amber" | "red" | "s
         tone === "sky" && "bg-sky-50 text-sky-800",
         tone === "amber" && "bg-amber-100 text-amber-900",
         tone === "red" && "bg-red-50 text-red-800",
-        tone === "slate" && "bg-slate-100 text-slate-700"
+        tone === "slate" && "bg-slate-100 text-slate-700",
+        className
       )}
     >
       {children}
@@ -494,10 +814,13 @@ function formatDateTime(value: string) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-AR", {
+  const formatted = new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires"
   }).format(new Date(value));
+
+  return formatted.replace(/[\u00A0\u202F]/g, " ");
 }

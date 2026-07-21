@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import crypto from "node:crypto";
 
 const prisma = new PrismaClient();
+
+function hashPassword(password) {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
 
 const now = new Date();
 
@@ -8,32 +13,63 @@ const users = [
   {
     id: "5dd80b28-5c82-4d4c-a3d7-30d653c3781f",
     name: "Admin Campo",
-    email: "admin@agro.local",
+    email: "admin@agtech.com",
+    passwordHash: hashPassword("agtech2025"),
     role: "ADMIN"
   },
   {
-    id: "ba5dd187-4f96-4472-a908-230d2012317b",
-    name: "Martin Rivas",
-    email: "martin@campo.local",
+    id: "b2d3c53e-8c92-4d7a-b9a0-1e3fdb9f8870",
+    name: "Tomás Driver",
+    email: "driver@agtech.com",
+    passwordHash: hashPassword("driver2025"),
     role: "DRIVER"
   },
   {
-    id: "4e044138-0669-4914-96aa-6ed5222a63dd",
-    name: "Laura Medina",
-    email: "laura@campo.local",
-    role: "DRIVER"
+    id: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
+    name: "Lucía Maquinista",
+    email: "maquinista@agtech.com",
+    passwordHash: hashPassword("maquinista2025"),
+    role: "MACHINE_OPERATOR"
+  }
+];
+
+const customers = [
+  {
+    id: "1f7c7d83-6b5f-4f91-95e3-18191d4b0360",
+    name: "Agroservicios Norte",
+    email: "ventas@agroserviciosnorte.com",
+    phone: "341-555-0101",
+    address: "Ruta 9 Km 120",
+    documentNumber: "30-12345678-9",
+    active: true
   },
   {
-    id: "1686ea78-359f-420d-81e1-8a2ad4460176",
-    name: "Nicolas Duarte",
-    email: "nicolas@campo.local",
-    role: "MACHINE_OPERATOR"
+    id: "f8cf5801-2f69-4b52-a6ec-87aa8171832f",
+    name: "Estancia Las Talas",
+    email: "operaciones@lastalas.com",
+    phone: "341-555-0144",
+    address: "Paraje El Chañar",
+    documentNumber: "30-87654321-0",
+    active: true
+  }
+];
+
+const machineries = [
+  {
+    id: "8be32fa8-7c89-4c7c-8dae-7aa2e26e3d8f",
+    name: "Pulverizadora Pla MAP II",
+    type: "Pulverizadora",
+    brand: "Pla",
+    identifier: "PLA-002",
+    active: true
   },
   {
-    id: "42ef8310-aeaf-41a5-8315-9295bdb19533",
-    name: "Eva Molina",
-    email: "eva@campo.local",
-    role: "MACHINE_OPERATOR"
+    id: "d3d98f19-b89e-4fbb-bf6f-8fb9dd0d6c8f",
+    name: "Tractor John Deere 7215J",
+    type: "Tractor",
+    brand: "John Deere",
+    identifier: "JD-7215J",
+    active: true
   }
 ];
 
@@ -42,7 +78,7 @@ const trips = [
     id: "0f54c716-6d07-40dc-b40c-1193bb0f316a",
     truck: "Scania R450",
     licensePlate: "AB123CD",
-    driverId: "ba5dd187-4f96-4472-a908-230d2012317b",
+    driverId: "b2d3c53e-8c92-4d7a-b9a0-1e3fdb9f8870",
     driverName: "Martin Rivas",
     origin: "Campo La Esperanza",
     destination: "Acopio Norte",
@@ -58,7 +94,7 @@ const trips = [
     id: "4accd38d-ef20-4692-8784-59cbba0d6793",
     truck: "Volvo FH",
     licensePlate: "AE845LP",
-    driverId: "4e044138-0669-4914-96aa-6ed5222a63dd",
+    driverId: "b2d3c53e-8c92-4d7a-b9a0-1e3fdb9f8870",
     driverName: "Laura Medina",
     origin: "Lote 8",
     destination: "Puerto Rosario",
@@ -75,28 +111,32 @@ const trips = [
 const workOrders = [
   {
     id: "2cefb24a-dc77-412d-a910-e6dd9f7cf15c",
+    machineryId: "8be32fa8-7c89-4c7c-8dae-7aa2e26e3d8f",
     machinery: "Pulverizadora Pla MAP II",
-    operatorId: "1686ea78-359f-420d-81e1-8a2ad4460176",
+    operatorId: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
     operatorName: "Nicolas Duarte",
     initialHourMeter: 1240.5,
     finalHourMeter: 1258.7,
     hectaresWorked: 146,
     fuelLiters: 980,
     plot: "Lote 12",
+    customerId: "1f7c7d83-6b5f-4f91-95e3-18191d4b0360",
     customer: "Agroservicios Norte",
     clientCreatedAt: new Date("2026-07-19T10:20:00.000Z"),
     syncedAt: new Date("2026-07-19T10:35:00.000Z")
   },
   {
     id: "54a81258-b18b-445e-879a-54a9fbe85fc4",
+    machineryId: "d3d98f19-b89e-4fbb-bf6f-8fb9dd0d6c8f",
     machinery: "Tractor John Deere 7215J",
-    operatorId: "42ef8310-aeaf-41a5-8315-9295bdb19533",
+    operatorId: "ed18d4b3-4b51-4f43-95a9-4ebd2d527c32",
     operatorName: "Eva Molina",
     initialHourMeter: 821.1,
     finalHourMeter: 833.4,
     hectaresWorked: 82,
     fuelLiters: 720,
     plot: "Lote 4",
+    customerId: "f8cf5801-2f69-4b52-a6ec-87aa8171832f",
     customer: "Estancia Las Talas",
     clientCreatedAt: new Date("2026-07-19T09:30:00.000Z"),
     syncedAt: new Date("2026-07-19T09:50:00.000Z")
@@ -130,6 +170,22 @@ async function main() {
       where: { email: user.email },
       update: user,
       create: user
+    });
+  }
+
+  for (const customer of customers) {
+    await prisma.customer.upsert({
+      where: { id: customer.id },
+      update: customer,
+      create: customer
+    });
+  }
+
+  for (const machinery of machineries) {
+    await prisma.machinery.upsert({
+      where: { id: machinery.id },
+      update: machinery,
+      create: machinery
     });
   }
 

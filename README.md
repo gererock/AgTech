@@ -72,11 +72,7 @@ npm run db:create-local
 
 Ese comando pide la password local del superusuario `postgres`, crea el rol `agro`, crea la base `agro_operativo` y aplica migraciones sin cargar datos.
 
-Para leer datos reales desde PostgreSQL, usar en `.env`:
-
-```bash
-DASHBOARD_DATA_SOURCE="database"
-```
+La aplicación requiere `DATABASE_URL` para obtener datos reales de PostgreSQL. Asegurate de tener el `.env` configurado antes de arrancar.
 
 6. Levantar la app:
 

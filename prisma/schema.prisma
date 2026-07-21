@@ -30,35 +30,63 @@ enum SyncStatus {
 }
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  email     String   @unique
-  role      Role
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tripsAsDriver        Trip[]      @relation("TripDriver")
   workOrdersAsOperator WorkOrder[] @relation("WorkOrderOperator")
 }
 
+model Customer {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  email           String?
+  phone           String?
+  address         String?
+  documentNumber  String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workOrders      WorkOrder[] @relation("WorkOrderCustomer")
+}
+
+model Machinery {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  type            String?
+  brand           String?
+  identifier      String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workOrders      WorkOrder[] @relation("WorkOrderMachinery")
+}
+
 model Trip {
-  id            String     @id @default(uuid()) @db.Uuid
-  truck         String?
-  licensePlate  String
-  driverId      String?    @db.Uuid
-  driver        User?      @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
-  driverName    String
-  origin        String     @default("Sin informar")
-  destination   String     @default("Sin informar")
-  product       String
-  estimatedKg   Int
-  loadedKg      Int?
-  destinationKg Int?
-  status        TripStatus @default(PENDING)
+  id              String     @id @default(uuid()) @db.Uuid
+  truck           String?
+  licensePlate    String
+  driverId        String?    @db.Uuid
+  driver          User?      @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  driverName      String
+  origin          String     @default("Sin informar")
+  destination     String     @default("Sin informar")
+  product         String
+  estimatedKg     Int
+  loadedKg        Int?
+  destinationKg   Int?
+  status          TripStatus @default(PENDING)
   clientCreatedAt DateTime?
-  syncedAt      DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  syncedAt        DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([driverId])
   @@index([status])
@@ -67,6 +95,8 @@ model Trip {
 
 model WorkOrder {
   id                String   @id @default(uuid()) @db.Uuid
+  machineryId       String?  @db.Uuid
+  machineryCatalog  Machinery? @relation("WorkOrderMachinery", fields: [machineryId], references: [id], onDelete: SetNull)
   machinery         String
   operatorId        String?  @db.Uuid
   operator          User?    @relation("WorkOrderOperator", fields: [operatorId], references: [id], onDelete: SetNull)
@@ -76,6 +106,8 @@ model WorkOrder {
   hectaresWorked    Float
   fuelLiters        Float
   plot              String   @default("Sin informar")
+  customerId        String?  @db.Uuid
+  customerCatalog   Customer? @relation("WorkOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
   customer          String   @default("Sin informar")
   clientCreatedAt   DateTime?
   syncedAt          DateTime?
@@ -83,6 +115,8 @@ model WorkOrder {
   updatedAt         DateTime @updatedAt
 
   @@index([operatorId])
+  @@index([machineryId])
+  @@index([customerId])
   @@index([updatedAt])
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { CheckCircle2, Fuel, LayoutDashboard, Save, Tractor, Truck } from "lucide-react";
 import { OfflineStatusBanner } from "@/components/offline-status-banner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { cn } from "@/lib/utils";
+import { tripCreateSchema, workOrderCreateSchema } from "@/lib/sync-contracts";
 
 type FieldMode = "trip" | "work-order";
 
@@ -38,6 +39,8 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [mode, setMode] = useState<FieldMode>(initialMode);
   const [tripForm, setTripForm] = useState(initialTripForm);
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
+  const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -50,25 +53,50 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     syncPending
   } = useOfflineSync();
 
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const [customersResponse, machineriesResponse] = await Promise.all([
+          fetch("/api/admin/customers"),
+          fetch("/api/admin/machineries")
+        ]);
+
+        if (customersResponse.ok) {
+          setCustomers(await customersResponse.json());
+        }
+        if (machineriesResponse.ok) {
+          setMachineries(await machineriesResponse.json());
+        }
+      } catch {
+        setCustomers([]);
+        setMachineries([]);
+      }
+    };
+
+    void loadCatalogs();
+  }, []);
+
   const handleTripSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
     setFeedback(null);
 
-    const estimatedKg = Number(tripForm.estimatedKg);
+    const payload = {
+      licensePlate: tripForm.licensePlate.trim(),
+      driverName: tripForm.driverName.trim(),
+      product: tripForm.product.trim(),
+      estimatedKg: Number(tripForm.estimatedKg)
+    };
 
-    if (!Number.isFinite(estimatedKg) || estimatedKg <= 0) {
-      setFormError("Ingresá kilos estimados válidos.");
+    const validation = tripCreateSchema.safeParse(payload);
+
+    if (!validation.success) {
+      setFormError(validation.error.errors[0]?.message ?? "Revisá los datos del viaje.");
       return;
     }
 
     try {
-      const result = await saveTrip({
-        licensePlate: tripForm.licensePlate,
-        driverName: tripForm.driverName,
-        product: tripForm.product,
-        estimatedKg
-      });
+      const result = await saveTrip(validation.data);
 
       setTripForm(initialTripForm);
       setFeedback(
@@ -86,36 +114,26 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     setFormError(null);
     setFeedback(null);
 
-    const initialHourMeter = Number(workOrderForm.initialHourMeter);
-    const finalHourMeter = Number(workOrderForm.finalHourMeter);
-    const hectaresWorked = Number(workOrderForm.hectaresWorked);
-    const fuelLiters = Number(workOrderForm.fuelLiters);
+    const payload = {
+      machinery: workOrderForm.machinery.trim(),
+      operatorName: workOrderForm.operatorName.trim(),
+      initialHourMeter: Number(workOrderForm.initialHourMeter),
+      finalHourMeter: Number(workOrderForm.finalHourMeter),
+      hectaresWorked: Number(workOrderForm.hectaresWorked),
+      fuelLiters: Number(workOrderForm.fuelLiters),
+      plot: workOrderForm.plot.trim() || undefined,
+      customer: workOrderForm.customer.trim() || undefined
+    };
 
-    if (
-      ![initialHourMeter, finalHourMeter, hectaresWorked, fuelLiters].every(
-        (value) => Number.isFinite(value) && value >= 0
-      )
-    ) {
-      setFormError("Revisá los valores numéricos del parte diario.");
-      return;
-    }
+    const validation = workOrderCreateSchema.safeParse(payload);
 
-    if (finalHourMeter < initialHourMeter) {
-      setFormError("El horómetro final no puede ser menor que el inicial.");
+    if (!validation.success) {
+      setFormError(validation.error.errors[0]?.message ?? "Revisá los datos del parte diario.");
       return;
     }
 
     try {
-      const result = await saveWorkOrder({
-        machinery: workOrderForm.machinery,
-        operatorName: workOrderForm.operatorName,
-        initialHourMeter,
-        finalHourMeter,
-        hectaresWorked,
-        fuelLiters,
-        plot: workOrderForm.plot,
-        customer: workOrderForm.customer
-      });
+      const result = await saveWorkOrder(validation.data);
 
       setWorkOrderForm(initialWorkOrderForm);
       setFeedback(
@@ -216,7 +234,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-950">Carta de Porte / Viaje</h2>
-                <p className="text-sm font-semibold text-slate-600">Alta rápida para choferes.</p>
+                <p className="text-sm font-semibold text-slate-600">Alta rápida para conductores.</p>
               </div>
             </div>
 
@@ -236,12 +254,12 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   }
                 />
               </Field>
-              <Field label="Chofer" htmlFor="driverName">
+              <Field label="Conductor" htmlFor="driverName">
                 <Input
                   id="driverName"
                   required
                   autoComplete="name"
-                  placeholder="Nombre del chofer"
+                  placeholder="Nombre del conductor"
                   value={tripForm.driverName}
                   onChange={(event) =>
                     setTripForm((current) => ({ ...current, driverName: event.target.value }))
@@ -291,23 +309,28 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-950">Parte Diario de Maquinaria</h2>
-                <p className="text-sm font-semibold text-slate-600">Carga para maquinistas.</p>
+                <p className="text-sm font-semibold text-slate-600">Carga para operadores de maquina.</p>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Maquinaria" htmlFor="machinery" className="sm:col-span-2">
-                <Input
+                <select
                   id="machinery"
                   required
-                  placeholder="Tractor, pulverizadora..."
                   value={workOrderForm.machinery}
                   onChange={(event) =>
                     setWorkOrderForm((current) => ({ ...current, machinery: event.target.value }))
                   }
-                />
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar maquinaria</option>
+                  {machineries.map((machinery) => (
+                    <option key={machinery.id} value={machinery.name}>{machinery.name}</option>
+                  ))}
+                </select>
               </Field>
-              <Field label="Maquinista" htmlFor="operatorName" className="sm:col-span-2">
+              <Field label="Operador de maquina" htmlFor="operatorName" className="sm:col-span-2">
                 <Input
                   id="operatorName"
                   required
@@ -392,14 +415,19 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                 />
               </Field>
               <Field label="Cliente" htmlFor="customer">
-                <Input
+                <select
                   id="customer"
-                  placeholder="Estancia / empresa"
                   value={workOrderForm.customer}
                   onChange={(event) =>
                     setWorkOrderForm((current) => ({ ...current, customer: event.target.value }))
                   }
-                />
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar cliente</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.name}>{customer.name}</option>
+                  ))}
+                </select>
               </Field>
             </div>
 

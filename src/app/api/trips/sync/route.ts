@@ -1,32 +1,41 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { tripSyncPayloadSchema } from "@/lib/sync-contracts";
+import { tripSyncRecordSchema, type SyncFailure } from "@/lib/sync-contracts";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const rawBody = await safeReadJson(request);
   const payload = Array.isArray(rawBody) ? { records: rawBody } : rawBody;
-  const parsedPayload = tripSyncPayloadSchema.safeParse(payload);
 
-  if (!parsedPayload.success) {
-    return NextResponse.json(
-      {
-        error: "Invalid trip sync payload",
-        issues: parsedPayload.error.flatten()
-      },
-      { status: 400 }
-    );
+  if (!payload || !Array.isArray((payload as any).records)) {
+    return NextResponse.json({ error: "Invalid trip sync payload" }, { status: 400 });
   }
 
+  const records = (payload as { records: unknown[] }).records;
   const now = new Date();
   const syncedIds: string[] = [];
+  const failedRecords: SyncFailure[] = [];
 
-  try {
-    await prisma.$transaction(async (transaction) => {
-      for (const record of parsedPayload.data.records) {
-        const data = {
+  for (const item of records) {
+    const parsedRecord = tripSyncRecordSchema.safeParse(item);
+
+    if (!parsedRecord.success) {
+      failedRecords.push({
+        id: (item as any)?.id ?? "unknown",
+        error: parsedRecord.error.flatten().formErrors.join("; ") || "Registro inválido"
+      });
+      continue;
+    }
+
+    const record = parsedRecord.data;
+
+    try {
+      await prisma.trip.upsert({
+        where: { id: record.id },
+        create: {
+          id: record.id,
           truck: record.truck || null,
           licensePlate: record.licensePlate,
           driverId: record.driverId || null,
@@ -40,35 +49,56 @@ export async function POST(request: Request) {
           status: record.status,
           clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
           syncedAt: now
-        };
+        },
+        update: {
+          truck: record.truck || null,
+          licensePlate: record.licensePlate,
+          driverId: record.driverId || null,
+          driverName: record.driverName,
+          origin: record.origin || "Sin informar",
+          destination: record.destination || "Sin informar",
+          product: record.product,
+          estimatedKg: record.estimatedKg,
+          loadedKg: record.loadedKg ?? null,
+          destinationKg: record.destinationKg ?? null,
+          status: record.status,
+          clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
+          syncedAt: now
+        }
+      });
 
-        await transaction.trip.upsert({
-          where: { id: record.id },
-          create: {
-            id: record.id,
-            ...data
-          },
-          update: data
-        });
+      await prisma.syncLog.create({
+        data: {
+          entityType: "TRIP",
+          entityId: record.id,
+          status: "SUCCESS",
+          payload: toJsonPayload(record)
+        }
+      });
 
-        await transaction.syncLog.create({
-          data: {
-            entityType: "TRIP",
-            entityId: record.id,
-            status: "SUCCESS",
-            payload: toJsonPayload(record)
-          }
-        });
-
-        syncedIds.push(record.id);
-      }
-    });
-
-    return NextResponse.json({ syncedIds });
-  } catch (error) {
-    console.error("Trip sync failed", error);
-    return NextResponse.json({ error: "Trip sync failed" }, { status: 500 });
+      syncedIds.push(record.id);
+    } catch (error) {
+      console.error(`Trip sync record failed: ${record.id}`, error);
+      await prisma.syncLog.create({
+        data: {
+          entityType: "TRIP",
+          entityId: record.id,
+          status: "FAILED",
+          message: (error as Error)?.message ?? "Trip upsert failed",
+          payload: toJsonPayload(record)
+        }
+      });
+      failedRecords.push({
+        id: record.id,
+        error: (error as Error)?.message ?? "Sync failed"
+      });
+    }
   }
+
+  return NextResponse.json({
+    syncedIds,
+    failedRecords: failedRecords.length > 0 ? failedRecords : undefined
+  });
 }
 
 async function safeReadJson(request: Request) {
