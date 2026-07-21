@@ -20,7 +20,14 @@ export type TripDraft = Omit<TripSyncRecord, "id" | "status" | "createdAt" | "up
   status?: TripSyncRecord["status"];
 };
 
-export type WorkOrderDraft = Omit<WorkOrderSyncRecord, "id" | "createdAt" | "updatedAt">;
+export type WorkOrderDraft = Omit<WorkOrderSyncRecord, "id" | "createdAt" | "updatedAt"> & {
+  chemicals?: Array<{
+    inventoryItemId?: string | null;
+    product: string;
+    quantity: number;
+    unit: string;
+  }>;
+};
 
 class AgroOfflineDatabase extends Dexie {
   trips!: Table<OfflineTrip, string>;
@@ -65,6 +72,9 @@ export function createOfflineTrip(draft: TripDraft): OfflineTrip {
     estimatedKg: draft.estimatedKg,
     loadedKg: draft.loadedKg ?? null,
     destinationKg: draft.destinationKg ?? null,
+    fuelLiters: draft.fuelLiters ?? 0,
+    fuelItemId: draft.fuelItemId || null,
+    agroItemId: draft.agroItemId || null,
     status: draft.status ?? "PENDING",
     createdAt: now,
     updatedAt: now,
@@ -86,8 +96,10 @@ export function createOfflineWorkOrder(draft: WorkOrderDraft): OfflineWorkOrder 
     finalHourMeter: draft.finalHourMeter,
     hectaresWorked: draft.hectaresWorked,
     fuelLiters: draft.fuelLiters,
+    fuelItemId: draft.fuelItemId || null,
     plot: draft.plot?.trim() || "Sin informar",
     customer: draft.customer?.trim() || "Sin informar",
+    chemicals: draft.chemicals ?? [],
     createdAt: now,
     updatedAt: now,
     synced: false,

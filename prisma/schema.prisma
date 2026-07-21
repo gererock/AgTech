@@ -29,6 +29,29 @@ enum SyncStatus {
   FAILED
 }
 
+enum InventoryItemType {
+  FUEL
+  CHEMICAL
+  AGRO
+}
+
+model InventoryItem {
+  id             String             @id @default(uuid()) @db.Uuid
+  name           String
+  type           InventoryItemType
+  unit           String
+  quantity       Float              @default(0)
+  minQuantity    Float              @default(0)
+  active         Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  fuelTrips      Trip[]             @relation("TripFuel")
+  agroTrips      Trip[]             @relation("TripAgro")
+  fuelWorkOrders WorkOrder[]        @relation("WorkOrderFuel")
+  chemicals      WorkOrderChemical[]
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   name         String
@@ -82,6 +105,11 @@ model Trip {
   estimatedKg     Int
   loadedKg        Int?
   destinationKg   Int?
+  fuelLiters      Float?     @default(0)
+  fuelItemId      String?    @db.Uuid
+  fuelItem        InventoryItem? @relation("TripFuel", fields: [fuelItemId], references: [id], onDelete: SetNull)
+  agroItemId      String?    @db.Uuid
+  agroItem        InventoryItem? @relation("TripAgro", fields: [agroItemId], references: [id], onDelete: SetNull)
   status          TripStatus @default(PENDING)
   clientCreatedAt DateTime?
   syncedAt        DateTime?
@@ -105,10 +133,13 @@ model WorkOrder {
   finalHourMeter    Float
   hectaresWorked    Float
   fuelLiters        Float
+  fuelItemId        String?   @db.Uuid
+  fuelItem          InventoryItem? @relation("WorkOrderFuel", fields: [fuelItemId], references: [id], onDelete: SetNull)
   plot              String   @default("Sin informar")
   customerId        String?  @db.Uuid
   customerCatalog   Customer? @relation("WorkOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
   customer          String   @default("Sin informar")
+  chemicals         WorkOrderChemical[]
   clientCreatedAt   DateTime?
   syncedAt          DateTime?
   createdAt         DateTime @default(now())
@@ -118,6 +149,22 @@ model WorkOrder {
   @@index([machineryId])
   @@index([customerId])
   @@index([updatedAt])
+}
+
+model WorkOrderChemical {
+  id              String         @id @default(uuid()) @db.Uuid
+  workOrderId     String?        @db.Uuid
+  workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  inventoryItemId String?        @db.Uuid
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  product         String
+  quantity        Float
+  unit            String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([workOrderId])
+  @@index([inventoryItemId])
 }
 
 model SyncLog {

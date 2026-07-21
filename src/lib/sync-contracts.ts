@@ -15,9 +15,19 @@ export const tripSyncRecordSchema = z.object({
   estimatedKg: z.coerce.number().int().nonnegative(),
   loadedKg: z.coerce.number().int().nonnegative().optional().nullable(),
   destinationKg: z.coerce.number().int().nonnegative().optional().nullable(),
+  fuelLiters: z.coerce.number().nonnegative().optional().default(0),
+  fuelItemId: optionalUuidSchema,
+  agroItemId: optionalUuidSchema,
   status: z.enum(["PENDING", "IN_TRANSIT", "COMPLETED"]).default("PENDING"),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()
+});
+
+export const workOrderChemicalItemSchema = z.object({
+  inventoryItemId: optionalUuidSchema,
+  product: z.string().trim().min(1).max(120),
+  quantity: z.coerce.number().nonnegative(),
+  unit: z.string().trim().min(1).max(40)
 });
 
 export const workOrderSyncRecordSchema = z
@@ -30,8 +40,10 @@ export const workOrderSyncRecordSchema = z
     finalHourMeter: z.coerce.number().nonnegative(),
     hectaresWorked: z.coerce.number().nonnegative(),
     fuelLiters: z.coerce.number().nonnegative(),
+    fuelItemId: optionalUuidSchema,
     plot: optionalTextSchema,
     customer: optionalTextSchema,
+    chemicals: z.array(workOrderChemicalItemSchema).optional(),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional()
   })
@@ -62,6 +74,9 @@ export const tripCreateSchema = z.object({
   destination: optionalTextSchema,
   product: z.string().trim().min(1).max(120),
   estimatedKg: z.coerce.number().int().positive(),
+  fuelLiters: z.coerce.number().nonnegative().optional().default(0),
+  fuelItemId: optionalUuidSchema,
+  agroItemId: optionalUuidSchema,
   status: z.enum(["PENDING", "IN_TRANSIT", "COMPLETED"]).default("PENDING")
 });
 
@@ -74,8 +89,19 @@ export const workOrderCreateSchema = z
     finalHourMeter: z.coerce.number().nonnegative(),
     hectaresWorked: z.coerce.number().nonnegative(),
     fuelLiters: z.coerce.number().nonnegative(),
+    fuelItemId: optionalUuidSchema,
     plot: optionalTextSchema,
-    customer: optionalTextSchema
+    customer: optionalTextSchema,
+    chemicals: z
+      .array(
+        z.object({
+          inventoryItemId: optionalUuidSchema,
+          product: z.string().trim().min(1).max(120),
+          quantity: z.coerce.number().nonnegative(),
+          unit: z.string().trim().min(1).max(40)
+        })
+      )
+      .optional()
   })
   .refine((record) => record.finalHourMeter >= record.initialHourMeter, {
     message: "El horómetro final no puede ser menor que el inicial.",
