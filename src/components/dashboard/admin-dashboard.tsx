@@ -11,6 +11,8 @@ import {
   Fuel,
   Gauge,
   LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Tractor,
   Truck,
@@ -57,6 +59,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
   const [activeSection, setActiveSection] = useState(initialView);
   const [profile, setProfile] = useState<{ id: string; name: string; email: string; role: AppRole } | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,20 +110,31 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
   const canManageAllOperations = profile?.role === "ADMIN";
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-          <div className="border-b border-slate-200 px-5 py-5">
-            <p className="text-xs font-extrabold uppercase text-teal-700">Agro Operativo</p>
-            <h1 className="mt-1 text-xl font-black">Backoffice</h1>
+    <div className="mobile-shell min-h-screen bg-slate-100 text-slate-950">
+      <div className="flex min-h-screen w-full flex-col lg:flex-row">
+        <aside className={cn("border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:min-h-screen lg:shrink-0 lg:border-b-0 lg:border-r lg:flex lg:flex-col", isSidebarCollapsed ? "w-full lg:w-20" : "w-full lg:w-64", !isSidebarCollapsed ? "block" : "hidden lg:flex")}> 
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5 sm:py-5">
+            <div className={cn("min-w-0", isSidebarCollapsed && "hidden")}> 
+              <p className="text-xs font-extrabold uppercase text-teal-700">Agro Operativo</p>
+              <h1 className="mt-1 text-xl font-black">Backoffice</h1>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100"
+              aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
           </div>
-          <nav className="grid gap-1 p-3 text-sm font-bold text-slate-700" aria-label="Secciones del panel">
+          <nav className="grid gap-1 overflow-y-auto p-2 text-sm font-bold text-slate-700 sm:p-3" aria-label="Secciones del panel">
             <SidebarItem
               icon={<LayoutDashboard className="h-4 w-4" />}
               label="Resumen"
               active={activeSection === "summary"}
               onClick={() => handleSectionChange("summary")}
               href="/dashboard?view=summary"
+              collapsed={isSidebarCollapsed}
             />
             <SidebarItem
               icon={<Activity className="h-4 w-4" />}
@@ -128,6 +142,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               active={activeSection === "operations"}
               onClick={() => handleSectionChange("operations")}
               href="/dashboard?view=operations"
+              collapsed={isSidebarCollapsed}
             />
             <SidebarItem
               icon={<Truck className="h-4 w-4" />}
@@ -135,6 +150,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               active={activeSection === "trips"}
               onClick={() => handleSectionChange("trips")}
               href="/dashboard?view=trips"
+              collapsed={isSidebarCollapsed}
             />
             <SidebarItem
               icon={<Tractor className="h-4 w-4" />}
@@ -142,6 +158,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               active={activeSection === "work-orders"}
               onClick={() => handleSectionChange("work-orders")}
               href="/dashboard?view=work-orders"
+              collapsed={isSidebarCollapsed}
             />
             {canManageUsers ? (
               <SidebarItem
@@ -150,6 +167,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 active={activeSection === "users"}
                 onClick={() => handleSectionChange("users")}
                 href="/dashboard?view=users"
+                collapsed={isSidebarCollapsed}
               />
             ) : null}
             {canManageAllOperations ? (
@@ -159,17 +177,18 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 active={activeSection === "sync-audit"}
                 onClick={() => handleSectionChange("sync-audit")}
                 href="/dashboard?view=sync-audit"
+                collapsed={isSidebarCollapsed}
               />
             ) : null}
           </nav>
         </aside>
 
         <main id="summary" className="min-w-0 flex-1">
-          <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:px-6">
+          <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4 lg:px-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-extrabold uppercase text-teal-700">Panel administrativo</p>
-                <h2 className="text-2xl font-black tracking-normal">
+                <h2 className="text-xl font-black tracking-normal sm:text-2xl">
                   {activeSection === "summary"
                     ? "Operación sincronizada"
                     : activeSection === "operations"
@@ -184,16 +203,24 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={overview.source === "database" ? "teal" : "amber"}>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 lg:hidden"
+                  aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+                >
+                  {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </button>
+                <Badge tone={overview.source === "database" ? "teal" : "amber"} className="w-full justify-center sm:w-auto">
                   {overview.source === "database" ? "Datos reales" : "Datos demo"}
                 </Badge>
-                <Badge tone="slate">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
+                <Badge tone="slate" className="w-full justify-center sm:w-auto">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
                 {profile ? (
                   <div className="relative" ref={profileMenuRef}>
                     <button
                       type="button"
                       onClick={() => setIsProfileMenuOpen((open) => !open)}
-                      className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100"
+                      className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 max-sm:w-full max-sm:justify-start"
                     >
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-black text-white">
                         {profile.name.charAt(0).toUpperCase()}
@@ -234,16 +261,16 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             </div>
           </header>
 
-          <div className="grid gap-5 px-4 py-5 lg:px-6">
+          <div className="grid gap-5 px-3 py-4 sm:px-4 lg:px-6 lg:py-5">
             {activeSection === "summary" ? (
               <>
-                <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {overview.metrics.map((metric) => (
                     <MetricCard key={metric.label} metric={metric} />
                   ))}
                 </section>
 
-                <section id="trips" className="grid gap-5 xl:grid-cols-[1fr_1.45fr]">
+                <section id="trips" className="grid gap-5 2xl:grid-cols-[1fr_1.45fr]">
                   <Panel title="Estado de viajes" icon={<Truck className="h-5 w-5" />}>
                     <div className="grid gap-4">
                       {overview.tripStatus.map((slice) => (
@@ -257,7 +284,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                   </Panel>
                 </section>
 
-                <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
+                <section className="grid gap-5 2xl:grid-cols-[1.3fr_1fr]">
                   <Panel title="Viajes recientes" icon={<ClipboardList className="h-5 w-5" />}>
                     <TripsTable rows={overview.recentTrips} />
                   </Panel>
@@ -267,7 +294,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                   </Panel>
                 </section>
 
-                <section className="grid gap-5 xl:grid-cols-3">
+                <section className="grid gap-5 2xl:grid-cols-3">
                   <Panel title="Choferes" icon={<Users className="h-5 w-5" />}>
                     <SimpleList
                       rows={overview.drivers.map((driver) => ({
@@ -332,25 +359,29 @@ function SidebarItem({
   label,
   active = false,
   onClick,
-  href
+  href,
+  collapsed = false
 }: {
   icon: ReactNode;
   label: string;
   active?: boolean;
   onClick: () => void;
   href: string;
+  collapsed?: boolean;
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
       className={cn(
-        "flex h-10 items-center gap-3 rounded-md px-3 text-left",
-        active ? "bg-teal-700 text-white" : "hover:bg-slate-100"
+        "flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-left",
+        active ? "bg-teal-700 text-white" : "hover:bg-slate-100",
+        collapsed && "justify-center px-2"
       )}
+      title={label}
     >
       {icon}
-      <span>{label}</span>
+      <span className={cn("truncate", collapsed && "sr-only")}>{label}</span>
     </Link>
   );
 }
@@ -451,33 +482,23 @@ function TripsTable({ rows }: { rows: TripTableRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-          <tr>
-            <th className="py-2 pr-3">Patente</th>
-            <th className="py-2 pr-3">Chofer</th>
-            <th className="py-2 pr-3">Producto</th>
-            <th className="py-2 pr-3">Kg</th>
-            <th className="py-2 pr-3">Estado</th>
-            <th className="py-2 pr-3">Destino</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td className="py-3 pr-3 font-black">{row.licensePlate}</td>
-              <td className="py-3 pr-3 font-bold text-slate-700">{row.driverName}</td>
-              <td className="py-3 pr-3">{row.product}</td>
-              <td className="py-3 pr-3">{integerFormatter.format(row.estimatedKg)}</td>
-              <td className="py-3 pr-3">
-                <TripStatusBadge status={row.status} />
-              </td>
-              <td className="py-3 pr-3 text-slate-600">{row.destination}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.id} className="rounded-md border border-slate-200 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-black">{row.licensePlate}</p>
+              <p className="text-sm text-slate-600">{row.driverName}</p>
+            </div>
+            <TripStatusBadge status={row.status} />
+          </div>
+          <div className="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+            <span>{row.product}</span>
+            <span className="sm:text-right">{integerFormatter.format(row.estimatedKg)} kg</span>
+            <span className="sm:col-span-2">{row.destination}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -585,33 +606,24 @@ function SyncAudit({ rows }: { rows: SyncAuditRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-          <tr>
-            <th className="py-2 pr-3">Estado</th>
-            <th className="py-2 pr-3">Entidad</th>
-            <th className="py-2 pr-3">Registro</th>
-            <th className="py-2 pr-3">Mensaje</th>
-            <th className="py-2 pr-3">Fecha</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td className="py-3 pr-3">
-                <Badge tone={row.status === "SUCCESS" ? "teal" : "red"}>
-                  {row.status === "SUCCESS" ? "OK" : "Revisar"}
-                </Badge>
-              </td>
-              <td className="py-3 pr-3 font-bold">{row.entityType === "TRIP" ? "Viaje" : "Parte"}</td>
-              <td className="py-3 pr-3 font-mono text-xs text-slate-600">{row.entityId ?? "Sin ID"}</td>
-              <td className="py-3 pr-3 text-slate-700">{row.message}</td>
-              <td className="py-3 pr-3 text-slate-600">{formatDateTime(row.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.id} className="rounded-md border border-slate-200 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Badge tone={row.status === "SUCCESS" ? "teal" : "red"}>
+              {row.status === "SUCCESS" ? "OK" : "Revisar"}
+            </Badge>
+            <span className="text-sm font-black text-slate-700">
+              {row.entityType === "TRIP" ? "Viaje" : "Parte"}
+            </span>
+          </div>
+          <div className="mt-2 space-y-1 text-sm text-slate-600">
+            <p className="font-mono text-xs">{row.entityId ?? "Sin ID"}</p>
+            <p>{row.message}</p>
+            <p className="text-xs font-bold text-slate-500">{formatDateTime(row.createdAt)}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -628,7 +640,7 @@ function TripStatusBadge({ status }: { status: TripTableRow["status"] }) {
   return <Badge tone="amber">Pendiente</Badge>;
 }
 
-function Badge({ tone, children }: { tone: "teal" | "sky" | "amber" | "red" | "slate"; children: ReactNode }) {
+function Badge({ tone, children, className }: { tone: "teal" | "sky" | "amber" | "red" | "slate"; children: ReactNode; className?: string }) {
   return (
     <span
       className={cn(
@@ -637,7 +649,8 @@ function Badge({ tone, children }: { tone: "teal" | "sky" | "amber" | "red" | "s
         tone === "sky" && "bg-sky-50 text-sky-800",
         tone === "amber" && "bg-amber-100 text-amber-900",
         tone === "red" && "bg-red-50 text-red-800",
-        tone === "slate" && "bg-slate-100 text-slate-700"
+        tone === "slate" && "bg-slate-100 text-slate-700",
+        className
       )}
     >
       {children}

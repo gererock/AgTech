@@ -36,6 +36,8 @@
 
   body {
     min-height: 100%;
+    width: 100%;
+    overflow-x: hidden;
     color: hsl(var(--foreground));
     background:
       linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(248, 250, 252, 0) 260px),
@@ -60,5 +62,11 @@
 @layer utilities {
   .touch-target {
     min-height: 3.25rem;
+  }
+
+  .mobile-shell {
+    width: min(100%, 100vw);
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }

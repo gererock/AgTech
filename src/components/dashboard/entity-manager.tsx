@@ -160,20 +160,20 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <form onSubmit={handleSubmit} className="rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-black">{getTitle(kind)}</h2>
-          <Button type="button" variant="outline" onClick={resetForm}>Limpiar</Button>
+          <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto">Limpiar</Button>
         </div>
         {message ? (
           <div className={`mb-4 rounded-md border px-3 py-2 text-sm ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
             {message.text}
           </div>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {renderFields(kind, form, setForm, { driverOptions, operatorOptions })}
-          <div className="md:col-span-2">
-            <Button type="submit" disabled={submitting}>{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
           </div>
         </div>
       </form>
@@ -207,15 +207,76 @@ export function EntityManager({ kind }: EntityManagerProps) {
             <Label htmlFor="date-filter">Fecha</Label>
             <Input id="date-filter" type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} />
           </div>
-          <Button type="button" variant="outline" onClick={() => setFilters({ search: "", status: "", date: "" })}>Limpiar</Button>
+          <Button type="button" variant="outline" onClick={() => setFilters({ search: "", status: "", date: "" })} className="w-full sm:w-auto">Limpiar</Button>
         </div>
 
         {loading ? (
           <p className="text-sm text-slate-600">Cargando...</p>
         ) : (
-          <div className="overflow-x-auto">
-            {kind === "users" ? (
-              <table className="w-full min-w-[560px] text-left text-sm">
+          <div>
+            <div className="space-y-3 sm:hidden">
+              {kind === "users" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.name}</p>
+                        <p className="text-sm text-slate-600">{item.email}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.role}</span>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+
+              {kind === "trips" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.licensePlate}</p>
+                        <p className="text-sm text-slate-600">{item.driverName}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.status}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{item.product}</p>
+                    <p className="text-sm text-slate-600">{item.origin} → {item.destination}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+
+              {kind === "work-orders" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.machinery}</p>
+                        <p className="text-sm text-slate-600">{item.operatorName}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.status}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{item.plot} · {item.customer}</p>
+                    <p className="text-sm text-slate-600">Ha {item.hectaresWorked} · {item.fuelLiters} L</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
+              {kind === "users" ? (
+                <table className="w-full min-w-[560px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="py-2 pr-3">Nombre</th>
@@ -305,6 +366,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                 </tbody>
               </table>
             ) : null}
+            </div>
           </div>
         )}
       </div>
