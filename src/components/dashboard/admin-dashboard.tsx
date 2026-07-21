@@ -17,7 +17,6 @@ import {
   RefreshCw,
   Tractor,
   Truck,
-  Wrench,
   Users
 } from "lucide-react";
 import type {
@@ -171,7 +170,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               collapsed={isSidebarCollapsed}
             />
             <SidebarItem
-              icon={<Wrench className="h-4 w-4" />}
+              icon={<Gauge className="h-4 w-4" />}
               label="Partes"
               active={activeSection === "work-orders"}
               onClick={() => handleSectionChange("work-orders")}
