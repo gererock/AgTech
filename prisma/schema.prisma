@@ -29,12 +29,6 @@ enum SyncStatus {
   FAILED
 }
 
-enum WorkOrderStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-}
-
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   name         String
@@ -76,23 +70,23 @@ model Machinery {
 }
 
 model Trip {
-  id            String     @id @default(uuid()) @db.Uuid
-  truck         String?
-  licensePlate  String
-  driverId      String?    @db.Uuid
-  driver        User?      @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
-  driverName    String
-  origin        String     @default("Sin informar")
-  destination   String     @default("Sin informar")
-  product       String
-  estimatedKg   Int
-  loadedKg      Int?
-  destinationKg Int?
-  status        TripStatus @default(PENDING)
+  id              String     @id @default(uuid()) @db.Uuid
+  truck           String?
+  licensePlate    String
+  driverId        String?    @db.Uuid
+  driver          User?      @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  driverName      String
+  origin          String     @default("Sin informar")
+  destination     String     @default("Sin informar")
+  product         String
+  estimatedKg     Int
+  loadedKg        Int?
+  destinationKg   Int?
+  status          TripStatus @default(PENDING)
   clientCreatedAt DateTime?
-  syncedAt      DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  syncedAt        DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([driverId])
   @@index([status])

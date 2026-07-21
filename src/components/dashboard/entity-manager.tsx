@@ -345,7 +345,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <p className="font-black">{item.machinery}</p>
                         <p className="text-sm text-slate-600">{item.operatorName}</p>
                       </div>
-                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.status}</span>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">{item.plot} · {item.customer}</p>
                     <p className="text-sm text-slate-600">Ha {item.hectaresWorked} · {item.fuelLiters} L</p>
@@ -992,14 +991,6 @@ function renderFields(
           {options.customerOptions.map((customer) => (
             <option key={customer.id} value={customer.id}>{customer.name}</option>
           ))}
-        </select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="workOrderStatus">Estado</Label>
-        <select id="workOrderStatus" value={form.status ?? "PENDING"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-          <option value="PENDING">PENDING</option>
-          <option value="IN_PROGRESS">IN_PROGRESS</option>
-          <option value="COMPLETED">COMPLETED</option>
         </select>
       </div>
     </>
