@@ -105,7 +105,6 @@ model WorkOrder {
   finalHourMeter    Float
   hectaresWorked    Float
   fuelLiters        Float
-  status            WorkOrderStatus @default(PENDING)
   plot              String   @default("Sin informar")
   customerId        String?  @db.Uuid
   customerCatalog   Customer? @relation("WorkOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
