@@ -220,8 +220,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   };
 
-  const driverOptions = users.filter((user) => user.role === "DRIVER" || user.role === "ADMIN");
-  const operatorOptions = users.filter((user) => user.role === "MACHINE_OPERATOR" || user.role === "ADMIN");
+  const driverOptions = users.filter((user) => user.role === "DRIVER");
+  const operatorOptions = users.filter((user) => user.role === "MACHINE_OPERATOR");
   const customerOptions = customers.filter((customer) => customer.active !== false);
   const machineryOptions = machineries.filter((machinery) => machinery.active !== false);
 
@@ -347,6 +347,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                   </div>
                 ))
               ) : null}
+              
 
               {kind === "work-orders" ? (
                 items.map((item) => (
@@ -690,7 +691,7 @@ function validateForm(kind: EntityKind, form: Record<string, string>): string | 
   }
 
   if (!form.machineryId?.trim()) return "La maquinaria es obligatoria";
-  if (!form.operatorName?.trim()) return "El operador es obligatorio";
+  if (!form.operatorId?.trim()) return "El operador es obligatorio";
   if (!form.initialHourMeter?.trim()) return "La hora inicial es obligatoria";
   if (!form.finalHourMeter?.trim()) return "La hora final es obligatoria";
   if (!form.hectaresWorked?.trim()) return "Las hectáreas trabajadas son obligatorias";
@@ -827,57 +828,126 @@ function renderFields(
     );
   }
 
-  if (kind === "trips") {
-    return (
-      <>
-        <div className="space-y-2">
-          <Label htmlFor="licensePlate">Patente</Label>
-          <Input id="licensePlate" value={form.licensePlate ?? ""} onChange={(event) => setForm((current) => ({ ...current, licensePlate: event.target.value }))} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="driverName">Conductor</Label>
-          <Input id="driverName" value={form.driverName ?? ""} onChange={(event) => setForm((current) => ({ ...current, driverName: event.target.value }))} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="driverId">Asignar conductor</Label>
-          <select id="driverId" value={form.driverId ?? ""} onChange={(event) => setForm((current) => ({ ...current, driverId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-            <option value="">Sin asignar</option>
-            {options.driverOptions.map((user) => (
-              <option key={user.id} value={user.id}>{user.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="truck">Camión</Label>
-          <Input id="truck" value={form.truck ?? ""} onChange={(event) => setForm((current) => ({ ...current, truck: event.target.value }))} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="product">Producto</Label>
-          <Input id="product" value={form.product ?? ""} onChange={(event) => setForm((current) => ({ ...current, product: event.target.value }))} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="estimatedKg">Kg estimados</Label>
-          <Input id="estimatedKg" type="number" value={form.estimatedKg ?? ""} onChange={(event) => setForm((current) => ({ ...current, estimatedKg: event.target.value }))} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="origin">Origen</Label>
-          <Input id="origin" value={form.origin ?? ""} onChange={(event) => setForm((current) => ({ ...current, origin: event.target.value }))} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="destination">Destino</Label>
-          <Input id="destination" value={form.destination ?? ""} onChange={(event) => setForm((current) => ({ ...current, destination: event.target.value }))} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="status">Estado</Label>
-          <select id="status" value={form.status ?? "PENDING"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-            {TRIP_STATUS_OPTIONS.map((status) => (
-              <option key={status.value} value={status.value}>{status.label}</option>
-            ))}
-          </select>
-        </div>
-      </>
-    );
-  }
+if (kind === "trips") {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="licensePlate">Patente</Label>
+        <Input
+          id="licensePlate"
+          value={form.licensePlate ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, licensePlate: event.target.value }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="driverId">Conductor</Label>
+        <select
+          id="driverId"
+          value={form.driverId ?? ""}
+          onChange={(event) => {
+            const selectedUser = options.driverOptions.find((user) => user.id === event.target.value);
+            setForm((current) => ({
+              ...current,
+              driverId: event.target.value,
+              driverName: selectedUser?.name ?? ""
+            }));
+          }}
+          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          required
+        >
+          <option value="">Sin asignar</option>
+          {options.driverOptions.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="truck">Camión</Label>
+        <Input
+          id="truck"
+          value={form.truck ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, truck: event.target.value }))
+          }
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="product">Producto</Label>
+        <Input
+          id="product"
+          value={form.product ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, product: event.target.value }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="estimatedKg">Kg Estimados</Label>
+        <Input
+          id="estimatedKg"
+          type="number"
+          value={form.estimatedKg ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, estimatedKg: event.target.value }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="origin">Origen</Label>
+        <Input
+          id="origin"
+          value={form.origin ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, origin: event.target.value }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="destination">Destino</Label>
+        <Input
+          id="destination"
+          value={form.destination ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, destination: event.target.value }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="status">Estado</Label>
+        <select
+          id="status"
+          value={form.status ?? "PENDING"}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, status: event.target.value }))
+          }
+          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+        >
+          {TRIP_STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
 
   if (kind === "customers") {
     return (
@@ -955,12 +1025,21 @@ function renderFields(
         </select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="operatorName">Operador</Label>
-        <Input id="operatorName" value={form.operatorName ?? ""} onChange={(event) => setForm((current) => ({ ...current, operatorName: event.target.value }))} required />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="operatorId">Asignar operador</Label>
-        <select id="operatorId" value={form.operatorId ?? ""} onChange={(event) => setForm((current) => ({ ...current, operatorId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+        <Label htmlFor="operatorId">Operador</Label>
+        <select
+          id="operatorId"
+          value={form.operatorId ?? ""}
+          onChange={(event) => {
+            const selectedUser = options.operatorOptions.find((user) => user.id === event.target.value);
+            setForm((current) => ({
+              ...current,
+              operatorId: event.target.value,
+              operatorName: selectedUser?.name ?? ""
+            }));
+          }}
+          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          required
+        >
           <option value="">Sin asignar</option>
           {options.operatorOptions.map((user) => (
             <option key={user.id} value={user.id}>{user.name}</option>
