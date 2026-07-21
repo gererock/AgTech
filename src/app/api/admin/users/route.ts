@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role, type Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 
 const prisma = new PrismaClient();
@@ -9,14 +9,31 @@ function hashPassword(password: string) {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireRole(["ADMIN", "DRIVER", "MACHINE_OPERATOR"]);
 
   if (!auth.ok) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
   }
 
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search")?.trim();
+  const role = parseRole(searchParams.get("status"));
+  const where: Prisma.UserWhereInput = {};
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } }
+    ];
+  }
+
+  if (role) {
+    where.role = role;
+  }
+
   const users = await prisma.user.findMany({
+    where,
     select: { id: true, name: true, email: true, role: true },
     orderBy: { createdAt: "desc" }
   });
@@ -43,4 +60,12 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json(user);
+}
+
+function parseRole(value: string | null) {
+  if (value === Role.ADMIN || value === Role.DRIVER || value === Role.MACHINE_OPERATOR) {
+    return value;
+  }
+
+  return null;
 }

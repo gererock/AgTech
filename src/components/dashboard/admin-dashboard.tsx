@@ -30,6 +30,7 @@ import type {
   WorkOrderTableRow
 } from "@/lib/dashboard-data";
 import { clearAuthSession } from "@/lib/auth";
+import { getRoleLabel } from "@/lib/role-labels";
 import { cn } from "@/lib/utils";
 import { EntityManager } from "@/components/dashboard/entity-manager";
 import { DailyOpsView } from "@/components/dashboard/daily-ops-view";
@@ -215,7 +216,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                   <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
                     <p className="font-black text-slate-900">{profile.name}</p>
                     <p className="truncate text-slate-600">{profile.email}</p>
-                    <p className="mt-1 text-xs font-bold uppercase text-teal-700">{profile.role}</p>
+                    <p className="mt-1 text-xs font-bold text-teal-700">{getRoleLabel(profile.role)}</p>
                   </div>
                   <div className="mt-2 space-y-1">
                     <button
@@ -293,7 +294,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                         <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
                           <p className="font-black text-slate-900">{profile.name}</p>
                           <p className="truncate text-slate-600">{profile.email}</p>
-                          <p className="mt-1 text-xs font-bold uppercase text-teal-700">{profile.role}</p>
+                          <p className="mt-1 text-xs font-bold text-teal-700">{getRoleLabel(profile.role)}</p>
                         </div>
                         <div className="mt-2 space-y-1">
                           <button
@@ -352,7 +353,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 </section>
 
                 <section className="grid gap-5 2xl:grid-cols-3">
-                  <Panel title="Choferes" icon={<Users className="h-5 w-5" />}>
+                  <Panel title="Conductores" icon={<Users className="h-5 w-5" />}>
                     <SimpleList
                       rows={overview.drivers.map((driver) => ({
                         title: driver.name,

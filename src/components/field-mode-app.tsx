@@ -209,7 +209,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-950">Carta de Porte / Viaje</h2>
-                <p className="text-sm font-semibold text-slate-600">Alta rápida para choferes.</p>
+                <p className="text-sm font-semibold text-slate-600">Alta rápida para conductores.</p>
               </div>
             </div>
 
@@ -229,12 +229,12 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   }
                 />
               </Field>
-              <Field label="Chofer" htmlFor="driverName">
+              <Field label="Conductor" htmlFor="driverName">
                 <Input
                   id="driverName"
                   required
                   autoComplete="name"
-                  placeholder="Nombre del chofer"
+                  placeholder="Nombre del conductor"
                   value={tripForm.driverName}
                   onChange={(event) =>
                     setTripForm((current) => ({ ...current, driverName: event.target.value }))
@@ -284,7 +284,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-950">Parte Diario de Maquinaria</h2>
-                <p className="text-sm font-semibold text-slate-600">Carga para maquinistas.</p>
+                <p className="text-sm font-semibold text-slate-600">Carga para operadores de maquina.</p>
               </div>
             </div>
 
@@ -300,7 +300,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   }
                 />
               </Field>
-              <Field label="Maquinista" htmlFor="operatorName" className="sm:col-span-2">
+              <Field label="Operador de maquina" htmlFor="operatorName" className="sm:col-span-2">
                 <Input
                   id="operatorName"
                   required

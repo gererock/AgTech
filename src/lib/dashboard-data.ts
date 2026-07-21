@@ -267,7 +267,7 @@ function buildDrivers(users: Array<{ name: string; email: string; role: Role }>,
 
     return {
       name,
-      role: "Chofer",
+      role: "Conductor",
       email: user?.email ?? "Sin email",
       trips: driverTrips.length,
       lastSync: driverTrips[0]?.syncedAt ?? "Sin actividad"
