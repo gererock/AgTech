@@ -15,7 +15,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
   const search = searchParams.get("search")?.trim();
-  const status = searchParams.get("status")?.trim();
 
   const conditions: Record<string, unknown>[] = [];
 
@@ -26,10 +25,6 @@ export async function GET(request: Request) {
         { updatedAt: { gte: new Date(`${date}T00:00:00.000Z`), lt: new Date(`${date}T23:59:59.999Z`) } }
       ]
     });
-  }
-
-  if (status) {
-    conditions.push({ status });
   }
 
   if (search) {
@@ -56,7 +51,6 @@ export async function GET(request: Request) {
       fuelLiters: true,
       plot: true,
       customer: true,
-      status: true,
       updatedAt: true
     }
   });
@@ -93,7 +87,6 @@ export async function POST(request: Request) {
       finalHourMeter: parsed.data.finalHourMeter,
       hectaresWorked: parsed.data.hectaresWorked,
       fuelLiters: parsed.data.fuelLiters,
-      status: parsed.data.status,
       plot: parsed.data.plot || "Sin informar",
       customer: parsed.data.customer || "Sin informar"
     },
@@ -107,7 +100,6 @@ export async function POST(request: Request) {
       fuelLiters: true,
       plot: true,
       customer: true,
-      status: true,
       updatedAt: true
     }
   });

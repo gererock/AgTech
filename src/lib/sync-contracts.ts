@@ -74,7 +74,6 @@ export const workOrderCreateSchema = z
     finalHourMeter: z.coerce.number().nonnegative(),
     hectaresWorked: z.coerce.number().nonnegative(),
     fuelLiters: z.coerce.number().nonnegative(),
-    status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]).default("PENDING"),
     plot: optionalTextSchema,
     customer: optionalTextSchema
   })

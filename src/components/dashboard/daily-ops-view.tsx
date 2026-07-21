@@ -24,7 +24,6 @@ type WorkOrderRecord = {
   id: string;
   machinery: string;
   operatorName: string;
-  status: string;
   hectaresWorked: number;
   fuelLiters: number;
   plot: string;
@@ -33,7 +32,6 @@ type WorkOrderRecord = {
 };
 
 const statusOptions = ["PENDING", "IN_TRANSIT", "COMPLETED"] as const;
-const workOrderStatusOptions = ["PENDING", "IN_PROGRESS", "COMPLETED"] as const;
 
 export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
   const [date, setDate] = useState(initialDate ?? new Date().toISOString().slice(0, 10));
@@ -63,16 +61,13 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
   const summary = useMemo(() => {
     const completedTrips = trips.filter((trip) => trip.status === "COMPLETED").length;
     const activeTrips = trips.filter((trip) => trip.status !== "COMPLETED").length;
-    const completedWorkOrders = workOrders.filter((workOrder) => workOrder.status === "COMPLETED").length;
-    const pendingWorkOrders = workOrders.filter((workOrder) => workOrder.status === "PENDING").length;
     const totalFuel = workOrders.reduce((sum, workOrder) => sum + workOrder.fuelLiters, 0);
     const totalHectares = workOrders.reduce((sum, workOrder) => sum + workOrder.hectaresWorked, 0);
 
     return {
       completedTrips,
       activeTrips,
-      completedWorkOrders,
-      pendingWorkOrders,
+      workOrderCount: workOrders.length,
       totalFuel,
       totalHectares
     };
@@ -87,19 +82,6 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
 
     if (response.ok) {
       setMessage("Estado del viaje actualizado");
-      await loadData();
-    }
-  };
-
-  const updateWorkOrderStatus = async (id: string, status: string) => {
-    const response = await fetch(`/api/admin/work-orders/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status })
-    });
-
-    if (response.ok) {
-      setMessage("Estado del parte actualizado");
       await loadData();
     }
   };
@@ -126,8 +108,8 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
             <p className="mt-1 text-2xl font-black">{summary.activeTrips}</p>
           </div>
           <div className="rounded-md bg-slate-50 p-3">
-            <p className="text-sm font-bold text-slate-600">Partes completados</p>
-            <p className="mt-1 text-2xl font-black">{summary.completedWorkOrders}</p>
+            <p className="text-sm font-bold text-slate-600">Partes cargados</p>
+            <p className="mt-1 text-2xl font-black">{summary.workOrderCount}</p>
           </div>
           <div className="rounded-md bg-slate-50 p-3">
             <p className="text-sm font-bold text-slate-600">Combustible / ha</p>
@@ -177,7 +159,7 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-black">Partes diarios</h3>
-              <p className="text-sm text-slate-600">Actualizar el avance de la jornada sin salir de la vista.</p>
+              <p className="text-sm text-slate-600">Registros de trabajo cargados para la jornada.</p>
             </div>
           </div>
           {loading ? <p className="text-sm text-slate-600">Cargando...</p> : (
@@ -189,18 +171,9 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
                       <p className="font-black">{workOrder.machinery} · {workOrder.operatorName}</p>
                       <p className="text-sm text-slate-600">{workOrder.plot} · {workOrder.customer}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {workOrderStatusOptions.map((status) => (
-                        <Button
-                          key={status}
-                          type="button"
-                          variant={workOrder.status === status ? "default" : "outline"}
-                          size="default"
-                          onClick={() => void updateWorkOrderStatus(workOrder.id, status)}
-                        >
-                          {status}
-                        </Button>
-                      ))}
+                    <div className="text-right text-sm font-bold text-slate-600">
+                      <p>{workOrder.hectaresWorked} ha</p>
+                      <p>{workOrder.fuelLiters} L</p>
                     </div>
                   </div>
                 </div>
