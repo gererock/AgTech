@@ -226,20 +226,22 @@ export function EntityManager({ kind }: EntityManagerProps) {
               placeholder={kind === "trips" ? "Patente, conductor, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : "Buscar"}
             />
           </div>
-          <div className="w-full lg:w-48">
-            <Label htmlFor="status-filter">{kind === "users" ? "Rol" : "Estado"}</Label>
-            <select
-              id="status-filter"
-              value={filters.status}
-              onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-              className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-            >
-              <option value="">{kind === "users" ? "Todos los roles" : "Todos"}</option>
-              {getStatusOptions(kind).map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+          {kind !== "work-orders" ? (
+            <div className="w-full lg:w-48">
+              <Label htmlFor="status-filter">{kind === "users" ? "Rol" : "Estado"}</Label>
+              <select
+                id="status-filter"
+                value={filters.status}
+                onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
+                className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+              >
+                <option value="">{kind === "users" ? "Todos los roles" : "Todos"}</option>
+                {getStatusOptions(kind).map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           {kind !== "users" ? (
             <div className="w-full lg:w-48">
               <Label htmlFor="date-filter">Fecha</Label>
@@ -300,7 +302,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <p className="font-black">{item.machinery}</p>
                         <p className="text-sm text-slate-600">{item.operatorName}</p>
                       </div>
-                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.status}</span>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">{item.plot} · {item.customer}</p>
                     <p className="text-sm text-slate-600">Ha {item.hectaresWorked} · {item.fuelLiters} L</p>
@@ -349,8 +350,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <th className="py-2 pr-3">Patente</th>
                     <th className="py-2 pr-3">Conductor</th>
                     <th className="py-2 pr-3">Producto</th>
-                    <th className="py-2 pr-3">Origen / Destino</th>
                     <th className="py-2 pr-3">Estado</th>
+                    <th className="py-2 pr-3">Origen / Destino</th>
                     <th className="py-2 pr-3">Acciones</th>
                   </tr>
                 </thead>
@@ -360,8 +361,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
                       <td className="py-2 pr-3">{item.driverName}</td>
                       <td className="py-2 pr-3">{item.product}</td>
-                      <td className="py-2 pr-3 text-slate-600">{item.origin} → {item.destination}</td>
                       <td className="py-2 pr-3">{item.status}</td>
+                      <td className="py-2 pr-3 text-slate-600">{item.origin} → {item.destination}</td>
                       <td className="py-2 pr-3">
                         <div className="flex gap-2">
                           <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
@@ -382,7 +383,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <th className="py-2 pr-3">Operador</th>
                     <th className="py-2 pr-3">Ha</th>
                     <th className="py-2 pr-3">Lote / Cliente</th>
-                    <th className="py-2 pr-3">Estado</th>
                     <th className="py-2 pr-3">Acciones</th>
                   </tr>
                 </thead>
@@ -393,7 +393,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <td className="py-2 pr-3">{item.operatorName}</td>
                       <td className="py-2 pr-3">{item.hectaresWorked}</td>
                       <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
-                      <td className="py-2 pr-3">{item.status}</td>
                       <td className="py-2 pr-3">
                         <div className="flex gap-2">
                           <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
@@ -438,7 +437,7 @@ function getInitialForm(kind: EntityKind): Record<string, string> {
   if (kind === "trips") {
     return { licensePlate: "", driverName: "", driverId: "", truck: "", product: "", estimatedKg: "", origin: "", destination: "", status: "PENDING" };
   }
-  return { machinery: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customer: "", status: "PENDING" };
+  return { machinery: "", operatorName: "", operatorId: "", initialHourMeter: "", finalHourMeter: "", hectaresWorked: "", fuelLiters: "", plot: "", customer: "" };
 }
 
 function buildFormState(kind: EntityKind, item: any): Record<string, string> {
@@ -467,8 +466,7 @@ function buildFormState(kind: EntityKind, item: any): Record<string, string> {
     hectaresWorked: String(item.hectaresWorked),
     fuelLiters: String(item.fuelLiters),
     plot: item.plot,
-    customer: item.customer,
-    status: item.status
+    customer: item.customer
   };
 }
 
@@ -543,8 +541,7 @@ function buildPayload(kind: EntityKind, form: Record<string, string>) {
     hectaresWorked: Number(form.hectaresWorked),
     fuelLiters: Number(form.fuelLiters),
     plot: form.plot,
-    customer: form.customer,
-    status: form.status
+    customer: form.customer
   };
 }
 
@@ -561,11 +558,7 @@ function getStatusOptions(kind: EntityKind) {
     ];
   }
 
-  return [
-    { value: "PENDING", label: "PENDING" },
-    { value: "IN_PROGRESS", label: "IN_PROGRESS" },
-    { value: "COMPLETED", label: "COMPLETED" }
-  ];
+  return [];
 }
 
 function renderFields(
@@ -695,14 +688,6 @@ function renderFields(
       <div className="space-y-2">
         <Label htmlFor="customer">Cliente</Label>
         <Input id="customer" value={form.customer ?? ""} onChange={(event) => setForm((current) => ({ ...current, customer: event.target.value }))} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="workOrderStatus">Estado</Label>
-        <select id="workOrderStatus" value={form.status ?? "PENDING"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-          <option value="PENDING">PENDING</option>
-          <option value="IN_PROGRESS">IN_PROGRESS</option>
-          <option value="COMPLETED">COMPLETED</option>
-        </select>
       </div>
     </>
   );
