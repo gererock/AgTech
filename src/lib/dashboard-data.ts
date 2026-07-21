@@ -80,7 +80,6 @@ export interface AssetRow {
 }
 
 export interface DashboardOverview {
-  source: "database" | "demo";
   generatedAt: string;
   metrics: DashboardMetric[];
   tripStatus: StatusSlice[];
@@ -111,8 +110,8 @@ const integerFormatter = new Intl.NumberFormat("es-AR", {
 const fuelCostPerLiter = 1080;
 
 export async function getDashboardOverview(): Promise<DashboardOverview> {
-  if (process.env.DASHBOARD_DATA_SOURCE !== "database" || !process.env.DATABASE_URL) {
-    return getDemoDashboardOverview();
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required for dashboard data");
   }
 
   try {
@@ -136,7 +135,6 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
     ]);
 
     return buildOverview({
-      source: "database",
       trips: trips.map((trip) => ({
         ...trip,
         syncedAt: trip.syncedAt?.toISOString() ?? trip.updatedAt.toISOString()
@@ -161,13 +159,12 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       }))
     });
   } catch (error) {
-    console.warn("Dashboard database read failed; falling back to demo data", error);
-    return getDemoDashboardOverview();
+    console.error("Dashboard database read failed", error);
+    throw error;
   }
 }
 
 function buildOverview(input: {
-  source: DashboardOverview["source"];
   trips: Array<TripTableRow>;
   workOrders: Array<WorkOrderTableRow>;
   users: Array<{ id: string; name: string; email: string; role: Role }>;
@@ -185,7 +182,6 @@ function buildOverview(input: {
   const customers = buildCustomerRows(input.workOrders);
 
   return {
-    source: input.source,
     generatedAt: new Date().toISOString(),
     metrics: [
       {
@@ -329,109 +325,4 @@ function calculateRatio(numerator: number, denominator: number) {
 
 function getDefaultSyncMessage(status: SyncStatus) {
   return status === "SUCCESS" ? "Registro sincronizado" : "Revision pendiente";
-}
-
-function getDemoDashboardOverview(): DashboardOverview {
-  return buildOverview({
-    source: "demo",
-    trips: [
-      {
-        id: "0f54c716-6d07-40dc-b40c-1193bb0f316a",
-        licensePlate: "AB123CD",
-        driverName: "Martin Rivas",
-        product: "Soja",
-        estimatedKg: 31200,
-        status: "IN_TRANSIT",
-        origin: "Campo La Esperanza",
-        destination: "Acopio Norte",
-        syncedAt: "2026-07-19T12:20:00.000Z"
-      },
-      {
-        id: "4accd38d-ef20-4692-8784-59cbba0d6793",
-        licensePlate: "AE845LP",
-        driverName: "Laura Medina",
-        product: "Maiz",
-        estimatedKg: 29800,
-        status: "PENDING",
-        origin: "Lote 8",
-        destination: "Puerto Rosario",
-        syncedAt: "2026-07-19T11:10:00.000Z"
-      },
-      {
-        id: "450b2434-a3f1-4f96-b49e-1072837a1889",
-        licensePlate: "AF310TR",
-        driverName: "Ruben Sosa",
-        product: "Trigo",
-        estimatedKg: 27300,
-        status: "COMPLETED",
-        origin: "Campo San Pedro",
-        destination: "Molino Centro",
-        syncedAt: "2026-07-18T18:45:00.000Z"
-      }
-    ],
-    workOrders: [
-      {
-        id: "2cefb24a-dc77-412d-a910-e6dd9f7cf15c",
-        machinery: "Pulverizadora Pla MAP II",
-        operatorName: "Nicolas Duarte",
-        hectaresWorked: 146,
-        fuelLiters: 980,
-        plot: "Lote 12",
-        customer: "Agroservicios Norte",
-        syncedAt: "2026-07-19T10:35:00.000Z"
-      },
-      {
-        id: "54a81258-b18b-445e-879a-54a9fbe85fc4",
-        machinery: "Tractor John Deere 7215J",
-        operatorName: "Eva Molina",
-        hectaresWorked: 82,
-        fuelLiters: 720,
-        plot: "Lote 4",
-        customer: "Estancia Las Talas",
-        syncedAt: "2026-07-19T09:50:00.000Z"
-      },
-      {
-        id: "99342cb6-2f26-4d3e-b822-32343de0fca5",
-        machinery: "Cosechadora Case 8250",
-        operatorName: "Tomas Alvarez",
-        hectaresWorked: 118,
-        fuelLiters: 1510,
-        plot: "Lote 18",
-        customer: "Agroservicios Norte",
-        syncedAt: "2026-07-18T21:18:00.000Z"
-      }
-    ],
-    users: [
-      {
-        id: "ba5dd187-4f96-4472-a908-230d2012317b",
-        name: "Martin Rivas",
-        email: "martin@campo.local",
-        role: "DRIVER"
-      },
-      {
-        id: "4e044138-0669-4914-96aa-6ed5222a63dd",
-        name: "Laura Medina",
-        email: "laura@campo.local",
-        role: "DRIVER"
-      }
-    ],
-    syncLogs: [
-      {
-        id: "7c536763-f2b4-438b-a182-51a93f262490",
-        entityType: "TRIP",
-        entityId: "0f54c716-6d07-40dc-b40c-1193bb0f316a",
-        status: "SUCCESS",
-        message: "Carta de porte sincronizada",
-        createdAt: "2026-07-19T12:21:00.000Z"
-      },
-      {
-        id: "856efcf2-0ad3-447a-95df-72a44bbaab41",
-        entityType: "WORK_ORDER",
-        entityId: "99342cb6-2f26-4d3e-b822-32343de0fca5",
-        status: "FAILED",
-        message: "Diferencia de horometro para revisar",
-        createdAt: "2026-07-19T08:05:00.000Z"
-      }
-    ]
-  });
 }

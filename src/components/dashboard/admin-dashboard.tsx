@@ -268,8 +268,8 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={overview.source === "database" ? "teal" : "amber"} className="w-full justify-center sm:w-auto">
-                  {overview.source === "database" ? "Datos reales" : "Datos demo"}
+                <Badge tone="teal" className="w-full justify-center sm:w-auto">
+                  Datos reales
                 </Badge>
                 <Badge tone="slate" className="w-full justify-center sm:w-auto">Actualizado {formatDateTime(overview.generatedAt)}</Badge>
                 {profile ? (
