@@ -512,7 +512,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
             <div className="hidden overflow-x-auto sm:block">
               {kind === "users" ? (
-                <table className="w-full min-w-[560px] text-left text-sm">
+                <table className="w-full table-auto text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="py-2 pr-3">Nombre</th>
@@ -527,8 +527,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 font-bold">{item.name}</td>
                         <td className="py-2 pr-3">{item.email}</td>
                         <td className="py-2 pr-3">{getRoleLabel(item.role)}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex gap-2">
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                           </div>
@@ -538,9 +538,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                   </tbody>
                 </table>
               ) : null}
-
               {kind === "trips" ? (
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full table-auto text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="py-2 pr-3">Patente</th>
@@ -563,8 +562,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                           </span>
                         </td>
                         <td className="py-2 pr-3 text-slate-600">{item.origin} a {item.destination}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex flex-wrap gap-2">
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                           </div>
@@ -576,7 +575,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
               ) : null}
 
               {kind === "work-orders" ? (
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full table-auto text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="py-2 pr-3">Maquinaria</th>
@@ -593,8 +592,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3">{item.operatorName}</td>
                         <td className="py-2 pr-3">{item.hectaresWorked}</td>
                         <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex gap-2">
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                           </div>
@@ -604,9 +603,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                   </tbody>
                 </table>
               ) : null}
-
               {kind === "customers" ? (
-                <table className="w-full min-w-[720px] text-left text-sm">
+                <table className="w-full table-auto text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="py-2 pr-3">Nombre</th>
@@ -623,8 +621,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3">{item.email ?? "-"}</td>
                         <td className="py-2 pr-3">{item.phone ?? "-"}</td>
                         <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex gap-2">
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                           </div>
@@ -636,7 +634,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
               ) : null}
 
               {kind === "machineries" ? (
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full table-auto text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="py-2 pr-3">Nombre</th>
@@ -655,8 +653,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3">{item.brand ?? "-"}</td>
                         <td className="py-2 pr-3">{item.identifier ?? "-"}</td>
                         <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex gap-2">
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                           </div>
@@ -689,9 +687,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3">{item.quantity} {item.unit}</td>
                         <td className="py-2 pr-3">{item.minQuantity} {item.unit}</td>
                         <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
-                        {/* w-1 reduce la celda al mínimo indispensable para sus botones */}
-                        <td className="py-2 pl-3 w-1 whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="success" onClick={() => handleRestock(item.id)}>Reabastecer</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
