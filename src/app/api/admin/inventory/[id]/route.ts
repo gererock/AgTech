@@ -18,7 +18,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if ("name" in body) data.name = body.name?.trim();
   if ("type" in body && (body.type === "FUEL" || body.type === "CHEMICAL" || body.type === "AGRO")) data.type = body.type;
   if ("unit" in body) data.unit = body.unit?.trim();
-  if ("quantity" in body) data.quantity = Number(body.quantity);
+  if ("restockAmount" in body) {
+    const restockAmount = Number(body.restockAmount);
+    if (Number.isNaN(restockAmount) || restockAmount <= 0) {
+      return NextResponse.json({ error: "Cantidad de reabastecimiento inválida" }, { status: 400 });
+    }
+    data.quantity = { increment: restockAmount };
+  } else if ("quantity" in body) {
+    data.quantity = Number(body.quantity);
+  }
   if ("minQuantity" in body) data.minQuantity = Number(body.minQuantity);
   if ("active" in body) data.active = Boolean(body.active);
 

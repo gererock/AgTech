@@ -58,6 +58,7 @@ type ChemicalLine = {
 type FilterState = {
   search: string;
   status: string;
+  type: string;
   date: string;
 };
 
@@ -76,7 +77,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const [form, setForm] = useState<Record<string, any>>(emptyForm);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({ search: "", status: "", date: "" });
+  const [filters, setFilters] = useState<FilterState>({ search: "", status: "", type: "", date: "" });
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const loadItems = useCallback(async (currentFilters: FilterState = filters) => {
@@ -90,6 +91,10 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
       if (currentFilters.status) {
         params.set("status", currentFilters.status);
+      }
+
+      if (currentFilters.type) {
+        params.set("type", currentFilters.type);
       }
 
       if (currentFilters.date) {
@@ -162,9 +167,13 @@ export function EntityManager({ kind }: EntityManagerProps) {
   }, [loadItems]);
 
   useEffect(() => {
+    void loadItems(filters);
+  }, [filters, loadItems]);
+
+  useEffect(() => {
     setEditingId(null);
     setForm(getInitialForm(kind));
-    setFilters({ search: "", status: "", date: "" });
+    setFilters({ search: "", status: "", type: "", date: "" });
     setMessage(null);
     setIsFormOpen(false);
   }, [kind]);
@@ -252,6 +261,32 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
     }
   };
 
+  const handleRestock = async (id: string) => {
+    const amount = Number(prompt("Cantidad a reabastecer"));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage({ type: "error", text: "Cantidad de reabastecimiento inválida" });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/inventory/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restockAmount: amount })
+      });
+
+      if (response.ok) {
+        setMessage({ type: "success", text: "Producto reabastecido correctamente" });
+        await loadItems(filters);
+      } else {
+        const errorData = await response.json().catch(() => null);
+        setMessage({ type: "error", text: errorData?.error ?? "No se pudo reabastecer el producto" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "No se pudo reabastecer el producto" });
+    }
+  };
+
   const driverOptions = users.filter((user) => user.role === "DRIVER");
   const operatorOptions = users.filter((user) => user.role === "MACHINE_OPERATOR");
   const customerOptions = customers.filter((customer) => customer.active !== false);
@@ -326,13 +361,29 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
               </select>
             </div>
           ) : null}
+          {kind === "inventory" ? (
+            <div className="w-full lg:w-48">
+              <Label htmlFor="type-filter">Tipo</Label>
+              <select
+                id="type-filter"
+                value={filters.type}
+                onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}
+                className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+              >
+                <option value="">Todos los tipos</option>
+                <option value="FUEL">Combustible</option>
+                <option value="CHEMICAL">Químico</option>
+                <option value="AGRO">Agro</option>
+              </select>
+            </div>
+          ) : null}
           {kind !== "users" && kind !== "customers" && kind !== "machineries" ? (
             <div className="w-full lg:w-48">
               <Label htmlFor="date-filter">Fecha</Label>
               <Input id="date-filter" type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} />
             </div>
           ) : null}
-          <Button type="button" variant="outline" onClick={() => setFilters({ search: "", status: "", date: "" })} className="w-full sm:w-auto">Limpiar</Button>
+          <Button type="button" variant="outline" onClick={() => setFilters({ search: "", status: "", type: "", date: "" })} className="w-full sm:w-auto">Limpiar</Button>
         </div>
 
         {loading ? (
@@ -451,6 +502,7 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
                     <p className="mt-2 text-sm text-slate-600">{item.quantity} / mínimo {item.minQuantity}</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="success" onClick={() => handleRestock(item.id)} className="flex-1">Reabastecer</Button>
                       <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
@@ -512,7 +564,7 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
                       </td>
                       <td className="py-2 pr-3 text-slate-600">{item.origin} a {item.destination}</td>
                       <td className="py-2 pr-3">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                           <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                         </div>
@@ -636,8 +688,9 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
                         <td className="py-2 pr-3">{item.minQuantity} {item.unit}</td>
                         <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
                         <td className="py-2 pr-3">
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="success" onClick={() => handleRestock(item.id)}>Reabastecer</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
                           </div>
                         </td>

@@ -11,8 +11,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
   }
 
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search")?.trim();
+  const status = searchParams.get("status")?.trim();
+  const type = searchParams.get("type")?.trim();
+
+  const conditions: Record<string, unknown>[] = [];
+
+  if (search) {
+    conditions.push({ name: { contains: search, mode: "insensitive" } });
+  }
+
+  if (status === "active") {
+    conditions.push({ active: true });
+  } else if (status === "inactive") {
+    conditions.push({ active: false });
+  }
+
+  if (type === "FUEL" || type === "CHEMICAL" || type === "AGRO") {
+    conditions.push({ type });
+  }
+
   const inventory = await prisma.inventoryItem.findMany({
-    where: { active: true },
+    where: conditions.length > 0 ? { AND: conditions } : {},
     orderBy: { name: "asc" },
     select: {
       id: true,
