@@ -212,7 +212,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
     const url = editingId ? `/api/admin/${kind}/${editingId}` : `/api/admin/${kind}`;
     const method = editingId ? "PATCH" : "POST";
-const payload = buildPayload(kind, form, { customers, machineries, inventoryItems });
+    const payload = buildPayload(kind, form, { customers, machineries, inventoryItems });
 
     try {
       const response = await fetch(url, {
@@ -430,7 +430,7 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
                   </div>
                 ))
               ) : null}
-              
+
 
               {kind === "work-orders" ? (
                 items.map((item) => (
@@ -539,38 +539,38 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
                 </table>
               ) : null}
 
-            {kind === "trips" ? (
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="py-2 pr-3">Patente</th>
-                    <th className="py-2 pr-3">Conductor</th>
-                    <th className="py-2 pr-3">Producto</th>
-                    <th className="py-2 pr-3">Estado</th>
-                    <th className="py-2 pr-3">Origen / Destino</th>
-                    <th className="py-2 pr-3">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
-                      <td className="py-2 pr-3">{item.driverName}</td>
-                      <td className="py-2 pr-3">{item.product}</td>
-                      <td className="py-2 pr-3">
-                        <span className={cn("inline-flex h-7 items-center rounded-sm border px-2 text-xs font-black", getTripStatusColorClassName(item.status))}>
-                          {getTripStatusLabel(item.status)}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3 text-slate-600">{item.origin} a {item.destination}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                          <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
-                        </div>
-                      </td>
+              {kind === "trips" ? (
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Patente</th>
+                      <th className="py-2 pr-3">Conductor</th>
+                      <th className="py-2 pr-3">Producto</th>
+                      <th className="py-2 pr-3">Estado</th>
+                      <th className="py-2 pr-3">Origen / Destino</th>
+                      <th className="py-2 pr-3">Acciones</th>
                     </tr>
-                  ))}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.licensePlate}</td>
+                        <td className="py-2 pr-3">{item.driverName}</td>
+                        <td className="py-2 pr-3">{item.product}</td>
+                        <td className="py-2 pr-3">
+                          <span className={cn("inline-flex h-7 items-center rounded-sm border px-2 text-xs font-black", getTripStatusColorClassName(item.status))}>
+                            {getTripStatusLabel(item.status)}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-slate-600">{item.origin} a {item.destination}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               ) : null}
@@ -668,7 +668,7 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
               ) : null}
 
               {kind === "inventory" ? (
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full table-auto text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
                     <tr>
                       <th className="py-2 pr-3">Nombre</th>
@@ -683,12 +683,15 @@ const payload = buildPayload(kind, form, { customers, machineries, inventoryItem
                     {items.map((item) => (
                       <tr key={item.id}>
                         <td className="py-2 pr-3 font-bold">{item.name}</td>
-                        <td className="py-2 pr-3">{item.type === "FUEL" ? "Combustible" : item.type === "CHEMICAL" ? "Químico" : item.type}</td>
+                        <td className="py-2 pr-3">
+                          {item.type === "FUEL" ? "Combustible" : item.type === "CHEMICAL" ? "Químico" : item.type}
+                        </td>
                         <td className="py-2 pr-3">{item.quantity} {item.unit}</td>
                         <td className="py-2 pr-3">{item.minQuantity} {item.unit}</td>
                         <td className="py-2 pr-3">{item.active ? "Activo" : "Inactivo"}</td>
-                        <td className="py-2 pr-3">
-                          <div className="flex flex-wrap gap-2">
+                        {/* w-1 reduce la celda al mínimo indispensable para sus botones */}
+                        <td className="py-2 pl-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="success" onClick={() => handleRestock(item.id)}>Reabastecer</Button>
                             <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
@@ -988,13 +991,13 @@ function buildPayload(
     customer: selectedCustomer?.name ?? form.customerId ?? "",
     chemicals: Array.isArray(form.chemicals)
       ? form.chemicals
-          .filter((chemical: any) => chemical.product?.trim())
-          .map((chemical: any) => ({
-            inventoryItemId: chemical.inventoryItemId || null,
-            product: chemical.product,
-            quantity: Number(chemical.quantity),
-            unit: chemical.unit
-          }))
+        .filter((chemical: any) => chemical.product?.trim())
+        .map((chemical: any) => ({
+          inventoryItemId: chemical.inventoryItemId || null,
+          product: chemical.product,
+          quantity: Number(chemical.quantity),
+          unit: chemical.unit
+        }))
       : []
   };
 }
@@ -1057,160 +1060,160 @@ function renderFields(
     );
   }
 
-if (kind === "trips") {
-  return (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="licensePlate">Patente</Label>
-        <Input
-          id="licensePlate"
-          value={form.licensePlate ?? ""}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, licensePlate: event.target.value }))
-          }
-          required
-        />
-      </div>
+  if (kind === "trips") {
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="licensePlate">Patente</Label>
+          <Input
+            id="licensePlate"
+            value={form.licensePlate ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, licensePlate: event.target.value }))
+            }
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="driverId">Conductor</Label>
-        <select
-          id="driverId"
-          value={form.driverId ?? ""}
-          onChange={(event) => {
-            const selectedUser = options.driverOptions.find((user) => user.id === event.target.value);
-            setForm((current) => ({
-              ...current,
-              driverId: event.target.value,
-              driverName: selectedUser?.name ?? ""
-            }));
-          }}
-          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-          required
-        >
-          <option value="">Sin asignar</option>
-          {options.driverOptions.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="driverId">Conductor</Label>
+          <select
+            id="driverId"
+            value={form.driverId ?? ""}
+            onChange={(event) => {
+              const selectedUser = options.driverOptions.find((user) => user.id === event.target.value);
+              setForm((current) => ({
+                ...current,
+                driverId: event.target.value,
+                driverName: selectedUser?.name ?? ""
+              }));
+            }}
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+            required
+          >
+            <option value="">Sin asignar</option>
+            {options.driverOptions.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="truck">Camión</Label>
-        <Input
-          id="truck"
-          value={form.truck ?? ""}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, truck: event.target.value }))
-          }
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="truck">Camión</Label>
+          <Input
+            id="truck"
+            value={form.truck ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, truck: event.target.value }))
+            }
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="product">Producto</Label>
-        <Input
-          id="product"
-          value={form.product ?? ""}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, product: event.target.value }))
-          }
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="product">Producto</Label>
+          <Input
+            id="product"
+            value={form.product ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, product: event.target.value }))
+            }
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="estimatedKg">Kg Estimados</Label>
-        <Input
-          id="estimatedKg"
-          type="number"
-          value={form.estimatedKg ?? ""}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, estimatedKg: event.target.value }))
-          }
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="estimatedKg">Kg Estimados</Label>
+          <Input
+            id="estimatedKg"
+            type="number"
+            value={form.estimatedKg ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, estimatedKg: event.target.value }))
+            }
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="fuelItemId">Tanque de combustible</Label>
-        <select
-          id="fuelItemId"
-          value={form.fuelItemId ?? ""}
-          onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))}
-          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-        >
-          <option value="">Seleccionar tanque</option>
-          {options.inventoryItems?.filter((item) => item.type === "FUEL").map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} ({item.quantity} {item.unit})
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="fuelItemId">Tanque de combustible</Label>
+          <select
+            id="fuelItemId"
+            value={form.fuelItemId ?? ""}
+            onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))}
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          >
+            <option value="">Seleccionar tanque</option>
+            {options.inventoryItems?.filter((item) => item.type === "FUEL").map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} ({item.quantity} {item.unit})
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="agroItemId">Producto agro</Label>
-        <select
-          id="agroItemId"
-          value={form.agroItemId ?? ""}
-          onChange={(event) => setForm((current) => ({ ...current, agroItemId: event.target.value }))}
-          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-        >
-          <option value="">Seleccionar agro</option>
-          {options.inventoryItems?.filter((item) => item.type === "AGRO").map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} ({item.quantity} {item.unit})
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="agroItemId">Producto agro</Label>
+          <select
+            id="agroItemId"
+            value={form.agroItemId ?? ""}
+            onChange={(event) => setForm((current) => ({ ...current, agroItemId: event.target.value }))}
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          >
+            <option value="">Seleccionar agro</option>
+            {options.inventoryItems?.filter((item) => item.type === "AGRO").map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} ({item.quantity} {item.unit})
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="origin">Origen</Label>
-        <Input
-          id="origin"
-          value={form.origin ?? ""}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, origin: event.target.value }))
-          }
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="origin">Origen</Label>
+          <Input
+            id="origin"
+            value={form.origin ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, origin: event.target.value }))
+            }
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="destination">Destino</Label>
-        <Input
-          id="destination"
-          value={form.destination ?? ""}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, destination: event.target.value }))
-          }
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="destination">Destino</Label>
+          <Input
+            id="destination"
+            value={form.destination ?? ""}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, destination: event.target.value }))
+            }
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="status">Estado</Label>
-        <select
-          id="status"
-          value={form.status ?? "PENDING"}
-          onChange={(event) =>
-            setForm((current) => ({ ...current, status: event.target.value }))
-          }
-          className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-        >
-          {TRIP_STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    </>
-  );
-}
+        <div className="space-y-2">
+          <Label htmlFor="status">Estado</Label>
+          <select
+            id="status"
+            value={form.status ?? "PENDING"}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, status: event.target.value }))
+            }
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          >
+            {TRIP_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </>
+    );
+  }
 
   if (kind === "customers") {
     return (
