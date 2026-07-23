@@ -36,8 +36,6 @@ export const workOrderSyncRecordSchema = z
     machinery: z.string().trim().min(1).max(120),
     operatorId: optionalUuidSchema,
     operatorName: z.string().trim().min(1).max(120),
-    initialHourMeter: z.coerce.number().nonnegative(),
-    finalHourMeter: z.coerce.number().nonnegative(),
     hectaresWorked: z.coerce.number().nonnegative(),
     fuelLiters: z.coerce.number().nonnegative(),
     fuelItemId: optionalUuidSchema,
@@ -46,10 +44,6 @@ export const workOrderSyncRecordSchema = z
     chemicals: z.array(workOrderChemicalItemSchema).optional(),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional()
-  })
-  .refine((record) => record.finalHourMeter >= record.initialHourMeter, {
-    message: "finalHourMeter must be greater than or equal to initialHourMeter",
-    path: ["finalHourMeter"]
   });
 
 export const tripSyncPayloadSchema = z.object({
@@ -85,8 +79,6 @@ export const workOrderCreateSchema = z
     machinery: z.string().trim().min(1).max(120),
     operatorId: optionalUuidSchema,
     operatorName: z.string().trim().min(1).max(120),
-    initialHourMeter: z.coerce.number().nonnegative(),
-    finalHourMeter: z.coerce.number().nonnegative(),
     hectaresWorked: z.coerce.number().nonnegative(),
     fuelLiters: z.coerce.number().nonnegative(),
     fuelItemId: optionalUuidSchema,
@@ -102,10 +94,6 @@ export const workOrderCreateSchema = z
         })
       )
       .optional()
-  })
-  .refine((record) => record.finalHourMeter >= record.initialHourMeter, {
-    message: "El horómetro final no puede ser menor que el inicial.",
-    path: ["finalHourMeter"]
   });
 
 export type TripSyncRecord = z.infer<typeof tripSyncRecordSchema>;

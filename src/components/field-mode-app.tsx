@@ -30,8 +30,6 @@ const initialTripForm = {
 const initialWorkOrderForm = {
   machinery: "",
   operatorName: "",
-  initialHourMeter: "",
-  finalHourMeter: "",
   hectaresWorked: "",
   fuelLiters: "",
   fuelItemId: "",
@@ -50,6 +48,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
+  const [lots, setLots] = useState<Array<{ id: string; name: string; hectares: number }>>([]);
   const [inventoryItems, setInventoryItems] = useState<Array<{ id: string; name: string; type: "FUEL" | "CHEMICAL" | "AGRO"; unit: string; quantity: number }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -66,9 +65,10 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [customersResponse, machineriesResponse, inventoryResponse] = await Promise.all([
+        const [customersResponse, machineriesResponse, lotsResponse, inventoryResponse] = await Promise.all([
           fetch("/api/admin/customers"),
           fetch("/api/admin/machineries"),
+          fetch("/api/admin/lots"),
           fetch("/api/admin/inventory")
         ]);
 
@@ -78,12 +78,16 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
         if (machineriesResponse.ok) {
           setMachineries(await machineriesResponse.json());
         }
+        if (lotsResponse.ok) {
+          setLots(await lotsResponse.json());
+        }
         if (inventoryResponse.ok) {
           setInventoryItems(await inventoryResponse.json());
         }
       } catch {
         setCustomers([]);
         setMachineries([]);
+        setLots([]);
         setInventoryItems([]);
       }
     };
@@ -135,8 +139,6 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     const payload = {
       machinery: workOrderForm.machinery.trim(),
       operatorName: workOrderForm.operatorName.trim(),
-      initialHourMeter: Number(workOrderForm.initialHourMeter),
-      finalHourMeter: Number(workOrderForm.finalHourMeter),
       hectaresWorked: Number(workOrderForm.hectaresWorked),
       fuelLiters: Number(workOrderForm.fuelLiters),
       fuelItemId: workOrderForm.fuelItemId || undefined,
@@ -453,37 +455,6 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   }
                 />
               </Field>
-              <Field label="Horómetro inicial" htmlFor="initialHourMeter">
-                <Input
-                  id="initialHourMeter"
-                  required
-                  inputMode="decimal"
-                  min={0}
-                  step="0.1"
-                  type="number"
-                  value={workOrderForm.initialHourMeter}
-                  onChange={(event) =>
-                    setWorkOrderForm((current) => ({
-                      ...current,
-                      initialHourMeter: event.target.value
-                    }))
-                  }
-                />
-              </Field>
-              <Field label="Horómetro final" htmlFor="finalHourMeter">
-                <Input
-                  id="finalHourMeter"
-                  required
-                  inputMode="decimal"
-                  min={0}
-                  step="0.1"
-                  type="number"
-                  value={workOrderForm.finalHourMeter}
-                  onChange={(event) =>
-                    setWorkOrderForm((current) => ({ ...current, finalHourMeter: event.target.value }))
-                  }
-                />
-              </Field>
               <Field label="Hectáreas" htmlFor="hectaresWorked">
                 <Input
                   id="hectaresWorked"
@@ -535,12 +506,27 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
               <Field label="Lote" htmlFor="plot">
                 <Input
                   id="plot"
-                  placeholder="Lote 12"
+                  list="lot-list"
+                  placeholder="Buscar lote..."
+                  autoComplete="off"
                   value={workOrderForm.plot}
-                  onChange={(event) =>
-                    setWorkOrderForm((current) => ({ ...current, plot: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const selectedLot = lots.find((lot) => lot.name === value);
+                    setWorkOrderForm((current) => ({
+                      ...current,
+                      plot: value,
+                      hectaresWorked: selectedLot ? String(selectedLot.hectares) : current.hectaresWorked
+                    }));
+                  }}
                 />
+                {lots.length > 0 ? (
+                  <datalist id="lot-list">
+                    {lots.map((lot) => (
+                      <option key={lot.id} value={lot.name} />
+                    ))}
+                  </datalist>
+                ) : null}
               </Field>
               <Field label="Cliente" htmlFor="customer">
                 <select

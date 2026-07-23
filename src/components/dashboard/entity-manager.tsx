@@ -10,13 +10,19 @@ import { cn } from "@/lib/utils";
 
 const emptyForm: Record<string, unknown> = {};
 
-export type EntityKind = "users" | "trips" | "work-orders" | "customers" | "machineries" | "inventory";
+export type EntityKind = "users" | "trips" | "work-orders" | "customers" | "machineries" | "inventory" | "lots";
 
 type UserOption = {
   id: string;
   name: string;
   email: string;
   role: string;
+};
+
+type LotOption = {
+  id: string;
+  name: string;
+  hectares: number;
 };
 
 type CustomerOption = {
@@ -71,6 +77,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [machineries, setMachineries] = useState<MachineryOption[]>([]);
+  const [lots, setLots] = useState<LotOption[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItemOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -144,6 +151,18 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   }, []);
 
+  const loadLots = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/lots");
+      if (response.ok) {
+        setLots(await response.json());
+      }
+    } catch {
+      setLots([]);
+    }
+  }, []);
+
+
   const loadInventoryItems = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/inventory");
@@ -159,8 +178,9 @@ export function EntityManager({ kind }: EntityManagerProps) {
     void loadUsers();
     void loadCustomers();
     void loadMachineries();
+    void loadLots();
     void loadInventoryItems();
-  }, [loadUsers, loadCustomers, loadMachineries, loadInventoryItems]);
+  }, [loadUsers, loadCustomers, loadMachineries, loadLots, loadInventoryItems]);
 
   useEffect(() => {
     void loadItems();
@@ -201,6 +221,10 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!event.currentTarget.reportValidity()) {
+      return;
+    }
+
     const validationMessage = validateForm(kind, form);
     if (validationMessage) {
       setMessage({ type: "error", text: validationMessage });
@@ -210,9 +234,34 @@ export function EntityManager({ kind }: EntityManagerProps) {
     setSubmitting(true);
     setMessage(null);
 
+    let payloadForm = form;
+
+    if (kind === "work-orders") {
+      const plotName = form.plot?.trim();
+      const existingLot = plotName
+        ? lots.find((lot) => lot.name.toLowerCase() === plotName.toLowerCase())
+        : null;
+
+      if (plotName && !existingLot) {
+        const createdLot = await createLot(plotName, Number(form.hectaresWorked || 0));
+        if (!createdLot) {
+          setSubmitting(false);
+          return;
+        }
+
+        payloadForm = {
+          ...form,
+          plot: createdLot.name,
+          hectaresWorked: form.hectaresWorked?.trim() ? form.hectaresWorked : String(createdLot.hectares)
+        };
+
+        setForm(payloadForm);
+      }
+    }
+
     const url = editingId ? `/api/admin/${kind}/${editingId}` : `/api/admin/${kind}`;
     const method = editingId ? "PATCH" : "POST";
-    const payload = buildPayload(kind, form, { customers, machineries, inventoryItems });
+    const payload = buildPayload(kind, payloadForm, { customers, machineries, inventoryItems });
 
     try {
       const response = await fetch(url, {
@@ -223,7 +272,13 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        setMessage({ type: "error", text: errorData?.error ?? "No se pudo guardar el registro" });
+        const issueText = errorData?.issues
+          ? [
+              ...(errorData.issues.formErrors ?? []),
+              ...Object.values(errorData.issues.fieldErrors ?? {}).flat()
+            ].filter(Boolean).join(". ")
+          : null;
+        setMessage({ type: "error", text: issueText || errorData?.error || "No se pudo guardar el registro" });
         return;
       }
 
@@ -261,6 +316,29 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   };
 
+  const createLot = async (name: string, hectares: number) => {
+    try {
+      const response = await fetch(`/api/admin/lots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, hectares })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        setMessage({ type: "error", text: errorData?.error ?? "No se pudo crear el lote" });
+        return null;
+      }
+
+      const lot = await response.json();
+      setLots((current) => [...current, lot]);
+      return lot;
+    } catch {
+      setMessage({ type: "error", text: "No se pudo crear el lote" });
+      return null;
+    }
+  };
+
   const handleRestock = async (id: string) => {
     const amount = Number(prompt("Cantidad a reabastecer"));
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -291,6 +369,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const operatorOptions = users.filter((user) => user.role === "MACHINE_OPERATOR");
   const customerOptions = customers.filter((customer) => customer.active !== false);
   const machineryOptions = machineries.filter((machinery) => machinery.active !== false);
+  const lotOptions = lots;
 
   return (
     <div className="space-y-6">
@@ -323,7 +402,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
             </div>
             <form onSubmit={handleSubmit} className="p-4 sm:p-6">
               <div className="grid gap-4 sm:grid-cols-2">
-                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions, inventoryItems })}
+                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions, inventoryItems, lotOptions: lots })}
                 <div className="sm:col-span-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button type="button" variant="outline" onClick={() => { resetForm(); setIsFormOpen(false); }} className="w-full sm:w-auto">Cancelar</Button>
                   <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
@@ -342,7 +421,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
               id="search-filter"
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder={kind === "trips" ? "Patente, conductor, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : kind === "customers" ? "Cliente, email o teléfono" : kind === "machineries" ? "Maquinaria, tipo o marca" : "Buscar"}
+              placeholder={kind === "trips" ? "Patente, conductor, producto" : kind === "work-orders" ? "Maquinaria, operador, lote" : kind === "customers" ? "Cliente, email o teléfono" : kind === "machineries" ? "Maquinaria, tipo o marca" : kind === "lots" ? "Nombre del lote" : "Buscar"}
             />
           </div>
           {kind !== "work-orders" ? (
@@ -699,6 +778,31 @@ export function EntityManager({ kind }: EntityManagerProps) {
                   </tbody>
                 </table>
               ) : null}
+              {kind === "lots" ? (
+                <table className="w-full table-auto text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Nombre</th>
+                      <th className="py-2 pr-3">Hectáreas</th>
+                      <th className="py-2 pr-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.name}</td>
+                        <td className="py-2 pr-3">{item.hectares} ha</td>
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
             </div>
           </div>
         )}
@@ -713,6 +817,7 @@ function getTitle(kind: EntityKind) {
   if (kind === "customers") return "Clientes";
   if (kind === "machineries") return "Maquinarias";
   if (kind === "inventory") return "Inventario";
+  if (kind === "lots") return "Lotes";
   return "Partes diarios";
 }
 
@@ -722,6 +827,7 @@ function getCreateButtonLabel(kind: EntityKind) {
   if (kind === "customers") return "Crear cliente";
   if (kind === "machineries") return "Crear maquinaria";
   if (kind === "inventory") return "Crear producto de inventario";
+  if (kind === "lots") return "Crear lote";
   return "Crear parte diario";
 }
 
@@ -731,6 +837,7 @@ function getEditFormTitle(kind: EntityKind) {
   if (kind === "customers") return "Editar cliente";
   if (kind === "machineries") return "Editar maquinaria";
   if (kind === "inventory") return "Editar producto de inventario";
+  if (kind === "lots") return "Editar lote";
   return "Editar parte diario";
 }
 
@@ -750,12 +857,13 @@ function getInitialForm(kind: EntityKind): Record<string, any> {
   if (kind === "inventory") {
     return { name: "", type: "FUEL", unit: "L", quantity: "", minQuantity: "", active: "true" };
   }
+  if (kind === "lots") {
+    return { name: "", hectares: "" };
+  }
   return {
     machineryId: "",
     operatorName: "",
     operatorId: "",
-    initialHourMeter: "",
-    finalHourMeter: "",
     hectaresWorked: "",
     fuelLiters: "",
     fuelItemId: "",
@@ -815,12 +923,16 @@ function buildFormState(kind: EntityKind, item: any): Record<string, any> {
       active: item.active ? "true" : "false"
     };
   }
+  if (kind === "lots") {
+    return {
+      name: item.name,
+      hectares: String(item.hectares ?? "")
+    };
+  }
   return {
     machineryId: item.machineryId ?? "",
     operatorName: item.operatorName,
     operatorId: item.operatorId ?? "",
-    initialHourMeter: String(item.initialHourMeter),
-    finalHourMeter: String(item.finalHourMeter),
     hectaresWorked: String(item.hectaresWorked),
     fuelLiters: String(item.fuelLiters),
     fuelItemId: item.fuelItemId ?? "",
@@ -877,23 +989,24 @@ function validateForm(kind: EntityKind, form: Record<string, any>): string | nul
     if (Number.isNaN(minQuantity) || minQuantity < 0) return "La cantidad mínima debe ser un número válido";
     return null;
   }
+  if (kind === "lots") {
+    if (!form.name?.trim()) return "El nombre del lote es obligatorio";
+    if (!form.hectares?.trim()) return "Las hectáreas son obligatorias";
+    const hectares = Number(form.hectares);
+    if (Number.isNaN(hectares) || hectares <= 0) return "Las hectáreas deben ser mayores a cero";
+    return null;
+  }
 
   if (!form.machineryId?.trim()) return "La maquinaria es obligatoria";
   if (!form.operatorId?.trim()) return "El operador es obligatorio";
-  if (!form.initialHourMeter?.trim()) return "La hora inicial es obligatoria";
-  if (!form.finalHourMeter?.trim()) return "La hora final es obligatoria";
+  if (!form.fuelItemId?.trim()) return "El tanque es obligatorio";
   if (!form.hectaresWorked?.trim()) return "Las hectáreas trabajadas son obligatorias";
   if (!form.fuelLiters?.trim()) return "Los litros son obligatorios";
   if (!form.customerId?.trim()) return "El cliente es obligatorio";
 
-  const initialHourMeter = Number(form.initialHourMeter);
-  const finalHourMeter = Number(form.finalHourMeter);
   const hectaresWorked = Number(form.hectaresWorked);
   const fuelLiters = Number(form.fuelLiters);
 
-  if (Number.isNaN(initialHourMeter) || initialHourMeter < 0) return "La hora inicial debe ser mayor o igual a cero";
-  if (Number.isNaN(finalHourMeter) || finalHourMeter < 0) return "La hora final debe ser mayor o igual a cero";
-  if (finalHourMeter < initialHourMeter) return "La hora final debe ser mayor o igual a la inicial";
   if (Number.isNaN(hectaresWorked) || hectaresWorked <= 0) return "Las hectáreas deben ser mayores a cero";
   if (Number.isNaN(fuelLiters) || fuelLiters <= 0) return "Los litros deben ser mayores a cero";
 
@@ -970,6 +1083,13 @@ function buildPayload(
     };
   }
 
+  if (kind === "lots") {
+    return {
+      name: form.name,
+      hectares: Number(form.hectares)
+    };
+  }
+
   const selectedMachinery = options.machineries.find((machinery) => machinery.id === form.machineryId);
   const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
 
@@ -978,8 +1098,6 @@ function buildPayload(
     machinery: selectedMachinery?.name ?? form.machineryId ?? "",
     operatorId: form.operatorId || null,
     operatorName: form.operatorName,
-    initialHourMeter: Number(form.initialHourMeter),
-    finalHourMeter: Number(form.finalHourMeter),
     hectaresWorked: Number(form.hectaresWorked),
     fuelLiters: Number(form.fuelLiters),
     fuelItemId: form.fuelItemId || null,
@@ -1008,7 +1126,7 @@ function getStatusOptions(kind: EntityKind) {
     return TRIP_STATUS_OPTIONS;
   }
 
-  if (kind === "customers" || kind === "machineries" || kind === "inventory") {
+  if (kind === "customers" || kind === "machineries" || kind === "inventory" || kind === "lots") {
     return [
       { value: "active", label: "Activos" },
       { value: "inactive", label: "Inactivos" }
@@ -1028,6 +1146,7 @@ function renderFields(
     customerOptions: CustomerOption[];
     machineryOptions: MachineryOption[];
     inventoryItems?: InventoryItemOption[];
+    lotOptions?: LotOption[];
   }
 ) {
   if (kind === "users") {
@@ -1140,6 +1259,7 @@ function renderFields(
             value={form.fuelItemId ?? ""}
             onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))}
             className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+            required
           >
             <option value="">Seleccionar tanque</option>
             {options.inventoryItems?.filter((item) => item.type === "FUEL").map((item) => (
@@ -1318,6 +1438,21 @@ function renderFields(
     );
   }
 
+  if (kind === "lots") {
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="lotName">Nombre</Label>
+          <Input id="lotName" value={form.name ?? ""} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lotHectares">Hectáreas</Label>
+          <Input id="lotHectares" type="number" min="0" step="0.1" value={form.hectares ?? ""} onChange={(event) => setForm((current) => ({ ...current, hectares: event.target.value }))} required />
+        </div>
+      </>
+    );
+  }
+
   if (kind === "work-orders") {
     const fuelItems = options.inventoryItems?.filter((item) => item.type === "FUEL") ?? [];
     const chemicalItems = options.inventoryItems?.filter((item) => item.type === "CHEMICAL") ?? [];
@@ -1362,7 +1497,20 @@ function renderFields(
 
         <div className="space-y-2">
           <Label htmlFor="operatorId">Operador</Label>
-          <select id="operatorId" value={form.operatorId ?? ""} onChange={(event) => setForm((current) => ({ ...current, operatorId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
+          <select
+            id="operatorId"
+            value={form.operatorId ?? ""}
+            onChange={(event) => {
+              const selectedUser = options.operatorOptions.find((user) => user.id === event.target.value);
+              setForm((current) => ({
+                ...current,
+                operatorId: event.target.value,
+                operatorName: selectedUser?.name ?? current.operatorName
+              }));
+            }}
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+            required
+          >
             <option value="">Seleccionar operador</option>
             {options.operatorOptions.map((user) => (
               <option key={user.id} value={user.id}>{user.name}</option>
@@ -1371,13 +1519,30 @@ function renderFields(
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="initialHourMeter">H. inicial</Label>
-          <Input id="initialHourMeter" type="number" value={form.initialHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, initialHourMeter: event.target.value }))} required />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="finalHourMeter">H. final</Label>
-          <Input id="finalHourMeter" type="number" value={form.finalHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, finalHourMeter: event.target.value }))} required />
+          <Label htmlFor="plot">Lote</Label>
+          <Input
+            id="plot"
+            list="lot-list"
+            placeholder="Buscar lote..."
+            autoComplete="off"
+            value={form.plot ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              const selectedLot = options.lotOptions?.find((lot) => lot.name === value);
+              setForm((current) => ({
+                ...current,
+                plot: value,
+                hectaresWorked: selectedLot ? String(selectedLot.hectares) : current.hectaresWorked
+              }));
+            }}
+          />
+          {options.lotOptions ? (
+            <datalist id="lot-list">
+              {options.lotOptions.map((lot) => (
+                <option key={lot.id} value={lot.name} />
+              ))}
+            </datalist>
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -1392,17 +1557,12 @@ function renderFields(
 
         <div className="space-y-2">
           <Label htmlFor="fuelItemId">Tanque de combustible</Label>
-          <select id="fuelItemId" value={form.fuelItemId ?? ""} onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+          <select id="fuelItemId" value={form.fuelItemId ?? ""} onChange={(event) => setForm((current) => ({ ...current, fuelItemId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
             <option value="">Seleccionar tanque</option>
             {fuelItems.map((item) => (
               <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
             ))}
           </select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="plot">Lote</Label>
-          <Input id="plot" value={form.plot ?? ""} onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))} />
         </div>
 
         <div className="space-y-2">
@@ -1515,14 +1675,6 @@ function renderFields(
         </select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="initialHourMeter">H. inicial</Label>
-        <Input id="initialHourMeter" type="number" value={form.initialHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, initialHourMeter: event.target.value }))} required />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="finalHourMeter">H. final</Label>
-        <Input id="finalHourMeter" type="number" value={form.finalHourMeter ?? ""} onChange={(event) => setForm((current) => ({ ...current, finalHourMeter: event.target.value }))} required />
-      </div>
-      <div className="space-y-2">
         <Label htmlFor="hectaresWorked">Ha trabajadas</Label>
         <Input id="hectaresWorked" type="number" value={form.hectaresWorked ?? ""} onChange={(event) => setForm((current) => ({ ...current, hectaresWorked: event.target.value }))} required />
       </div>
@@ -1532,7 +1684,27 @@ function renderFields(
       </div>
       <div className="space-y-2">
         <Label htmlFor="plot">Lote</Label>
-        <Input id="plot" value={form.plot ?? ""} onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))} />
+        <Input
+          id="plot"
+          list="lot-list"
+          value={form.plot ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            const selectedLot = options.lotOptions?.find((lot) => lot.name === value);
+            setForm((current) => ({
+              ...current,
+              plot: value,
+              hectaresWorked: selectedLot ? String(selectedLot.hectares) : current.hectaresWorked
+            }));
+          }}
+        />
+        {options.lotOptions ? (
+          <datalist id="lot-list">
+            {options.lotOptions.map((lot) => (
+              <option key={lot.id} value={lot.name}>{lot.name}</option>
+            ))}
+          </datalist>
+        ) : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="customer">Cliente</Label>

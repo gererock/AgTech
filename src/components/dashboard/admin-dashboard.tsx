@@ -199,6 +199,16 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             ) : null}
             {canManageCatalogs ? (
               <SidebarItem
+                icon={<ClipboardList className="h-4 w-4" />}
+                label="Lotes"
+                active={activeSection === "lots"}
+                onClick={() => handleSectionChange("lots")}
+                href="/dashboard?view=lots"
+                collapsed={isSidebarCollapsed}
+              />
+            ) : null}
+            {canManageCatalogs ? (
+              <SidebarItem
                 icon={<Fuel className="h-4 w-4" />}
                 label="Inventario"
                 active={activeSection === "inventory"}
@@ -440,6 +450,12 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             {activeSection === "machineries" && canManageCatalogs ? (
               <div id="machineries" className="scroll-mt-24">
                 <EntityManager kind="machineries" />
+              </div>
+            ) : null}
+
+            {activeSection === "lots" && canManageCatalogs ? (
+              <div id="lots" className="scroll-mt-24">
+                <EntityManager kind="lots" />
               </div>
             ) : null}
 
