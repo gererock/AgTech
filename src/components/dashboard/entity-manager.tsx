@@ -456,7 +456,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
               </select>
             </div>
           ) : null}
-          {kind !== "users" && kind !== "customers" && kind !== "machineries" ? (
+          {kind !== "users" && kind !== "customers" && kind !== "machineries" && kind !== "inventory" && kind !== "lots" ? (
             <div className="w-full lg:w-48">
               <Label htmlFor="date-filter">Fecha</Label>
               <Input id="date-filter" type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} />
