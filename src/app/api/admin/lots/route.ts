@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
-  const auth = await requireRole(["ADMIN"]);
+  const auth = await requireRole(["ADMIN", "DRIVER", "MACHINE_OPERATOR"]);
 
   if (!auth.ok) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireRole(["ADMIN"]);
+  const auth = await requireRole(["ADMIN", "MACHINE_OPERATOR"]);
 
   if (!auth.ok) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: auth.status });

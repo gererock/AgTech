@@ -29,6 +29,7 @@ const initialTripForm = {
 
 const initialWorkOrderForm = {
   machinery: "",
+  operatorId: "",
   operatorName: "",
   hectaresWorked: "",
   fuelLiters: "",
@@ -48,6 +49,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
   const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
+  const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [lots, setLots] = useState<Array<{ id: string; name: string; hectares: number }>>([]);
   const [inventoryItems, setInventoryItems] = useState<Array<{ id: string; name: string; type: "FUEL" | "CHEMICAL" | "AGRO"; unit: string; quantity: number }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -65,9 +67,10 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [customersResponse, machineriesResponse, lotsResponse, inventoryResponse] = await Promise.all([
+        const [customersResponse, machineriesResponse, usersResponse, lotsResponse, inventoryResponse] = await Promise.all([
           fetch("/api/admin/customers"),
           fetch("/api/admin/machineries"),
+          fetch("/api/admin/users?status=MACHINE_OPERATOR"),
           fetch("/api/admin/lots"),
           fetch("/api/admin/inventory")
         ]);
@@ -78,6 +81,9 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
         if (machineriesResponse.ok) {
           setMachineries(await machineriesResponse.json());
         }
+        if (usersResponse.ok) {
+          setUsers(await usersResponse.json());
+        }
         if (lotsResponse.ok) {
           setLots(await lotsResponse.json());
         }
@@ -87,6 +93,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
       } catch {
         setCustomers([]);
         setMachineries([]);
+        setUsers([]);
         setLots([]);
         setInventoryItems([]);
       }
@@ -97,6 +104,10 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
 
   const handleTripSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!event.currentTarget.reportValidity()) {
+      return;
+    }
+
     setFormError(null);
     setFeedback(null);
 
@@ -133,11 +144,16 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
 
   const handleWorkOrderSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!event.currentTarget.reportValidity()) {
+      return;
+    }
+
     setFormError(null);
     setFeedback(null);
 
-    const payload = {
+    let payload = {
       machinery: workOrderForm.machinery.trim(),
+      operatorId: workOrderForm.operatorId || undefined,
       operatorName: workOrderForm.operatorName.trim(),
       hectaresWorked: Number(workOrderForm.hectaresWorked),
       fuelLiters: Number(workOrderForm.fuelLiters),
@@ -153,6 +169,28 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
           unit: item.unit.trim() || "L"
         }))
     };
+
+    const plotName = workOrderForm.plot.trim();
+    const existingLot = plotName
+      ? lots.find((lot) => lot.name.toLowerCase() === plotName.toLowerCase())
+      : null;
+
+    if (plotName && !existingLot) {
+      const createdLot = await createLot(plotName, Number(workOrderForm.hectaresWorked) || 0);
+      if (!createdLot) {
+        return;
+      }
+
+      payload = {
+        ...payload,
+        plot: createdLot.name
+      };
+
+      setWorkOrderForm((current) => ({
+        ...current,
+        plot: createdLot.name
+      }));
+    }
 
     const validation = workOrderCreateSchema.safeParse(payload);
 
@@ -178,6 +216,29 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const fuelItems = inventoryItems.filter((item) => item.type === "FUEL");
   const chemicalItems = inventoryItems.filter((item) => item.type === "CHEMICAL");
   const agroItems = inventoryItems.filter((item) => item.type === "AGRO");
+
+  const createLot = async (name: string, hectares: number) => {
+    try {
+      const response = await fetch("/api/admin/lots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, hectares })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        setFormError(errorData?.error ?? "No se pudo crear el lote.");
+        return null;
+      }
+
+      const lot = await response.json();
+      setLots((current) => [...current, lot]);
+      return lot;
+    } catch (error) {
+      setFormError(getErrorMessage(error));
+      return null;
+    }
+  };
 
   const addChemicalLine = () => {
     setWorkOrderForm((current) => ({
@@ -443,17 +504,54 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   ))}
                 </select>
               </Field>
-              <Field label="Operador de maquina" htmlFor="operatorName" className="sm:col-span-2">
-                <Input
-                  id="operatorName"
+              <Field label="Operador de maquina" htmlFor="operatorId" className="sm:col-span-2">
+                <select
+                  id="operatorId"
                   required
-                  autoComplete="name"
-                  placeholder="Nombre del operador"
-                  value={workOrderForm.operatorName}
-                  onChange={(event) =>
-                    setWorkOrderForm((current) => ({ ...current, operatorName: event.target.value }))
-                  }
+                  value={workOrderForm.operatorId}
+                  onChange={(event) => {
+                    const operatorId = event.target.value;
+                    const selectedOperator = users.find((user) => user.id === operatorId);
+                    setWorkOrderForm((current) => ({
+                      ...current,
+                      operatorId,
+                      operatorName: selectedOperator?.name ?? ""
+                    }));
+                  }}
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar operador</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Lote" htmlFor="plot">
+                <Input
+                  id="plot"
+                  list="lot-list"
+                  placeholder="Buscar lote..."
+                  autoComplete="off"
+                  value={workOrderForm.plot}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const selectedLot = lots.find((lot) => lot.name === value);
+                    setWorkOrderForm((current) => ({
+                      ...current,
+                      plot: value,
+                      hectaresWorked: selectedLot ? String(selectedLot.hectares) : current.hectaresWorked
+                    }));
+                  }}
                 />
+                {lots.length > 0 ? (
+                  <datalist id="lot-list">
+                    {lots.map((lot) => (
+                      <option key={lot.id} value={lot.name} />
+                    ))}
+                  </datalist>
+                ) : null}
               </Field>
               <Field label="Hectáreas" htmlFor="hectaresWorked">
                 <Input
@@ -502,31 +600,6 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                     </option>
                   ))}
                 </select>
-              </Field>
-              <Field label="Lote" htmlFor="plot">
-                <Input
-                  id="plot"
-                  list="lot-list"
-                  placeholder="Buscar lote..."
-                  autoComplete="off"
-                  value={workOrderForm.plot}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    const selectedLot = lots.find((lot) => lot.name === value);
-                    setWorkOrderForm((current) => ({
-                      ...current,
-                      plot: value,
-                      hectaresWorked: selectedLot ? String(selectedLot.hectares) : current.hectaresWorked
-                    }));
-                  }}
-                />
-                {lots.length > 0 ? (
-                  <datalist id="lot-list">
-                    {lots.map((lot) => (
-                      <option key={lot.id} value={lot.name} />
-                    ))}
-                  </datalist>
-                ) : null}
               </Field>
               <Field label="Cliente" htmlFor="customer">
                 <select
