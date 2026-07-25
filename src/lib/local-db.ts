@@ -92,6 +92,7 @@ export function createOfflineWorkOrder(draft: WorkOrderDraft): OfflineWorkOrder 
     machinery: draft.machinery.trim(),
     operatorId: draft.operatorId || null,
     operatorName: draft.operatorName.trim(),
+    workOrderPlanId: (draft as any).workOrderPlanId || null,
     hectaresWorked: draft.hectaresWorked,
     fuelLiters: draft.fuelLiters,
     fuelItemId: draft.fuelItemId || null,

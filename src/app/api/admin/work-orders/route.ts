@@ -86,6 +86,7 @@ export async function POST(request: Request) {
         machinery: parsed.data.machinery,
         operatorId: parsed.data.operatorId || null,
         operatorName: parsed.data.operatorName,
+        workOrderPlanId: parsed.data.workOrderPlanId || null,
         hectaresWorked: parsed.data.hectaresWorked,
         fuelLiters: parsed.data.fuelLiters,
         fuelItemId: parsed.data.fuelItemId || null,
@@ -98,12 +99,7 @@ export async function POST(request: Request) {
         machineryId: true,
         machinery: true,
         operatorName: true,
-        hectaresWorked: true,
-        fuelLiters: true,
-        fuelItemId: true,
-        plot: true,
-        customerId: true,
-        customer: true,
+        workOrderPlanId: true,
         updatedAt: true
       }
     });

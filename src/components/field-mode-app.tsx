@@ -51,6 +51,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [lots, setLots] = useState<Array<{ id: string; name: string; hectares: number }>>([]);
+  const [assignedPlans, setAssignedPlans] = useState<Array<{ id: string; title: string; plot: string; customer: string; instructions?: string | null; plannedAt?: string | null; assignedOperatorName?: string | null }>>([]);
   const [inventoryItems, setInventoryItems] = useState<Array<{ id: string; name: string; type: "FUEL" | "CHEMICAL" | "AGRO"; unit: string; quantity: number }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -67,12 +68,13 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [customersResponse, machineriesResponse, usersResponse, lotsResponse, inventoryResponse] = await Promise.all([
+        const [customersResponse, machineriesResponse, usersResponse, lotsResponse, inventoryResponse, plansResponse] = await Promise.all([
           fetch("/api/admin/customers"),
           fetch("/api/admin/machineries"),
           fetch("/api/admin/users?status=MACHINE_OPERATOR"),
           fetch("/api/admin/lots"),
-          fetch("/api/admin/inventory")
+          fetch("/api/admin/inventory"),
+          fetch("/api/admin/work-order-plans")
         ]);
 
         if (customersResponse.ok) {
@@ -89,6 +91,9 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
         }
         if (inventoryResponse.ok) {
           setInventoryItems(await inventoryResponse.json());
+        }
+        if (plansResponse.ok) {
+          setAssignedPlans(await plansResponse.json());
         }
       } catch {
         setCustomers([]);
@@ -298,6 +303,31 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
             Cargá viajes y partes diarios aunque no haya señal. La app sincroniza cuando vuelve la conexión.
           </p>
         </header>
+
+        {assignedPlans.length > 0 ? (
+          <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <LayoutDashboard className="h-4 w-4 text-slate-600" />
+              <h2 className="text-sm font-black text-slate-900">Planes asignados</h2>
+            </div>
+            <div className="space-y-2">
+              {assignedPlans.map((plan) => (
+                <div key={plan.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-900">{plan.title}</p>
+                      <p className="text-sm text-slate-600">{plan.plot} · {plan.customer}</p>
+                    </div>
+                    {plan.plannedAt ? (
+                      <span className="text-xs text-slate-500">{new Date(plan.plannedAt).toLocaleDateString("es-AR")}</span>
+                    ) : null}
+                  </div>
+                  {plan.instructions ? <p className="mt-2 text-sm text-slate-700">{plan.instructions}</p> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-white p-1 shadow-sm">
           <button

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 const emptyForm: Record<string, unknown> = {};
 
-export type EntityKind = "users" | "trips" | "work-orders" | "customers" | "machineries" | "inventory" | "lots";
+export type EntityKind = "users" | "trips" | "work-orders" | "work-order-plans" | "customers" | "machineries" | "inventory" | "lots";
 
 type UserOption = {
   id: string;
@@ -23,6 +23,14 @@ type LotOption = {
   id: string;
   name: string;
   hectares: number;
+};
+
+type WorkOrderPlanOption = {
+  id: string;
+  title: string;
+  plot: string;
+  customerId: string | null;
+  customer: string;
 };
 
 type CustomerOption = {
@@ -77,6 +85,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [machineries, setMachineries] = useState<MachineryOption[]>([]);
+  const [workOrderPlans, setWorkOrderPlans] = useState<WorkOrderPlanOption[]>([]);
   const [lots, setLots] = useState<LotOption[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItemOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,6 +95,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const [submitting, setSubmitting] = useState(false);
   const [filters, setFilters] = useState<FilterState>({ search: "", status: "", type: "", date: "" });
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
 
   const loadItems = useCallback(async (currentFilters: FilterState = filters) => {
     setLoading(true);
@@ -140,6 +150,17 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   }, []);
 
+  const loadWorkOrderPlans = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/work-order-plans");
+      if (response.ok) {
+        setWorkOrderPlans(await response.json());
+      }
+    } catch {
+      setWorkOrderPlans([]);
+    }
+  }, []);
+
   const loadMachineries = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/machineries");
@@ -178,9 +199,10 @@ export function EntityManager({ kind }: EntityManagerProps) {
     void loadUsers();
     void loadCustomers();
     void loadMachineries();
+    void loadWorkOrderPlans();
     void loadLots();
     void loadInventoryItems();
-  }, [loadUsers, loadCustomers, loadMachineries, loadLots, loadInventoryItems]);
+  }, [loadUsers, loadCustomers, loadMachineries, loadWorkOrderPlans, loadLots, loadInventoryItems]);
 
   useEffect(() => {
     void loadItems();
@@ -261,7 +283,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 
     const url = editingId ? `/api/admin/${kind}/${editingId}` : `/api/admin/${kind}`;
     const method = editingId ? "PATCH" : "POST";
-    const payload = buildPayload(kind, payloadForm, { customers, machineries, inventoryItems });
+    const payload = buildPayload(kind, payloadForm, { customers, machineries, inventoryItems, workOrderPlans });
 
     try {
       const response = await fetch(url, {
@@ -298,13 +320,18 @@ export function EntityManager({ kind }: EntityManagerProps) {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("¿Seguro que querés eliminar este registro?")) {
+  const openDeleteDialog = (item: any) => {
+    const label = item?.title ?? item?.name ?? item?.licensePlate ?? item?.machinery ?? item?.name ?? "este registro";
+    setDeleteTarget({ id: item.id, label });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/admin/${kind}/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/admin/${kind}/${deleteTarget.id}`, { method: "DELETE" });
       if (response.ok) {
         setMessage({ type: "success", text: "Registro eliminado correctamente" });
         await loadItems(filters);
@@ -313,6 +340,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
       }
     } catch {
       setMessage({ type: "error", text: "No se pudo eliminar el registro" });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -370,6 +399,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const customerOptions = customers.filter((customer) => customer.active !== false);
   const machineryOptions = machineries.filter((machinery) => machinery.active !== false);
   const lotOptions = lots;
+  const workOrderPlanOptions = workOrderPlans;
 
   return (
     <div className="space-y-6">
@@ -390,6 +420,25 @@ export function EntityManager({ kind }: EntityManagerProps) {
         </div>
       ) : null}
 
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="border-b border-slate-200 px-4 py-3 sm:px-6">
+              <h3 className="text-base font-black">Confirmar eliminación</h3>
+            </div>
+            <div className="space-y-4 px-4 py-5 sm:px-6">
+              <p className="text-sm text-slate-600">
+                ¿Seguro que querés eliminar <span className="font-semibold text-slate-900">{deleteTarget.label}</span>?
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+                <Button type="button" variant="destructive" onClick={handleDelete}>Eliminar</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isFormOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
           <div className="w-full max-w-3xl rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
@@ -402,7 +451,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
             </div>
             <form onSubmit={handleSubmit} className="p-4 sm:p-6">
               <div className="grid gap-4 sm:grid-cols-2">
-                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions, inventoryItems, lotOptions: lots })}
+                {renderFields(kind, form, setForm, { driverOptions, operatorOptions, customerOptions, machineryOptions, inventoryItems, lotOptions: lots, workOrderPlanOptions })}
                 <div className="sm:col-span-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button type="button" variant="outline" onClick={() => { resetForm(); setIsFormOpen(false); }} className="w-full sm:w-auto">Cancelar</Button>
                   <Button type="submit" disabled={submitting} className="w-full sm:w-auto">{submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}</Button>
@@ -456,7 +505,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
               </select>
             </div>
           ) : null}
-          {kind !== "users" && kind !== "customers" && kind !== "machineries" && kind !== "inventory" && kind !== "lots" ? (
+          {kind !== "users" && kind !== "customers" && kind !== "machineries" && kind !== "lots" ? (
             <div className="w-full lg:w-48">
               <Label htmlFor="date-filter">Fecha</Label>
               <Input id="date-filter" type="date" value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))} />
@@ -482,7 +531,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     </div>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
-                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
                 ))
@@ -504,7 +553,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <p className="text-sm text-slate-600">{item.origin} → {item.destination}</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
-                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
                 ))
@@ -524,7 +573,26 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <p className="text-sm text-slate-600">Ha {item.hectaresWorked} · {item.fuelLiters} L</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
-                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+
+              {kind === "work-order-plans" ? (
+                items.map((item) => (
+                  <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-black">{item.title}</p>
+                        <p className="text-sm text-slate-600">{item.plot ?? "Sin lote"}</p>
+                      </div>
+                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.customer ?? "Sin cliente"}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{item.instructions ?? "Sin instrucciones"}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
                 ))
@@ -543,7 +611,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <p className="mt-2 text-sm text-slate-600">{item.phone ?? "Sin teléfono"}</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
-                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
                 ))
@@ -562,7 +630,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <p className="mt-2 text-sm text-slate-600">{item.brand ?? "Sin marca"} · {item.identifier ?? "Sin identificador"}</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
-                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
                 ))
@@ -582,7 +650,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
                       <Button type="button" variant="success" onClick={() => handleRestock(item.id)} className="flex-1">Reabastecer</Button>
-                      <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)} className="flex-1">Borrar</Button>
+                      <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)} className="flex-1">Borrar</Button>
                     </div>
                   </div>
                 ))
@@ -609,7 +677,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -644,7 +712,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -674,7 +742,38 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+              {kind === "work-order-plans" ? (
+                <table className="w-full table-auto text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Título</th>
+                      <th className="py-2 pr-3">Lote</th>
+                      <th className="py-2 pr-3">Cliente</th>
+                      <th className="py-2 pr-3">Maquinista</th>
+                      <th className="py-2 pr-3">Fecha</th>
+                      <th className="py-2 pr-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2 pr-3 font-bold">{item.title}</td>
+                        <td className="py-2 pr-3">{item.plot ?? "Sin lote"}</td>
+                        <td className="py-2 pr-3">{item.customer ?? "Sin cliente"}</td>
+                        <td className="py-2 pr-3">{item.assignedOperatorName ?? "Sin asignar"}</td>
+                        <td className="py-2 pr-3">{item.plannedAt ? new Date(item.plannedAt).toLocaleDateString("es-AR") : "Sin fecha"}</td>
+                        <td className="py-2 pr-3 w-1 whitespace-nowrap">
+                          <div className="flex items-center justify-start gap-1.5">
+                            <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -703,7 +802,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -735,7 +834,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -770,7 +869,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
                             <Button type="button" variant="success" onClick={() => handleRestock(item.id)}>Reabastecer</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -795,7 +894,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
-                            <Button type="button" variant="destructive" onClick={() => handleDelete(item.id)}>Borrar</Button>
+                            <Button type="button" variant="destructive" onClick={() => openDeleteDialog(item)}>Borrar</Button>
                           </div>
                         </td>
                       </tr>
@@ -814,6 +913,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
 function getTitle(kind: EntityKind) {
   if (kind === "users") return "Usuarios";
   if (kind === "trips") return "Viajes";
+  if (kind === "work-order-plans") return "Órdenes planificadas";
   if (kind === "customers") return "Clientes";
   if (kind === "machineries") return "Maquinarias";
   if (kind === "inventory") return "Inventario";
@@ -828,6 +928,7 @@ function getCreateButtonLabel(kind: EntityKind) {
   if (kind === "machineries") return "Crear maquinaria";
   if (kind === "inventory") return "Crear producto de inventario";
   if (kind === "lots") return "Crear lote";
+  if (kind === "work-order-plans") return "Crear orden planificada";
   return "Crear parte diario";
 }
 
@@ -838,6 +939,7 @@ function getEditFormTitle(kind: EntityKind) {
   if (kind === "machineries") return "Editar maquinaria";
   if (kind === "inventory") return "Editar producto de inventario";
   if (kind === "lots") return "Editar lote";
+  if (kind === "work-order-plans") return "Editar orden planificada";
   return "Editar parte diario";
 }
 
@@ -860,10 +962,25 @@ function getInitialForm(kind: EntityKind): Record<string, any> {
   if (kind === "lots") {
     return { name: "", hectares: "" };
   }
+  if (kind === "work-order-plans") {
+    return {
+      title: "",
+      plot: "",
+      customerId: "",
+      assignedOperatorId: "",
+      assignedOperatorName: "",
+      instructions: "",
+      plannedAt: "",
+      chemicals: [
+        { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+      ]
+    };
+  }
   return {
     machineryId: "",
     operatorName: "",
     operatorId: "",
+    workOrderPlanId: "",
     hectaresWorked: "",
     fuelLiters: "",
     fuelItemId: "",
@@ -929,10 +1046,28 @@ function buildFormState(kind: EntityKind, item: any): Record<string, any> {
       hectares: String(item.hectares ?? "")
     };
   }
+  if (kind === "work-order-plans") {
+    return {
+      title: item.title,
+      plot: item.plot ?? "",
+      customerId: item.customerId ?? "",
+      assignedOperatorId: item.assignedOperatorId ?? "",
+      assignedOperatorName: item.assignedOperatorName ?? "",
+      instructions: item.instructions ?? "",
+      plannedAt: item.plannedAt ? item.plannedAt.slice(0, 10) : "",
+      chemicals: (item.chemicals ?? []).map((chemical: any) => ({
+        inventoryItemId: chemical.inventoryItemId ?? "",
+        product: chemical.product ?? "",
+        quantity: String(chemical.quantity ?? ""),
+        unit: chemical.unit ?? "L"
+      }))
+    };
+  }
   return {
     machineryId: item.machineryId ?? "",
     operatorName: item.operatorName,
     operatorId: item.operatorId ?? "",
+    workOrderPlanId: item.workOrderPlanId ?? "",
     hectaresWorked: String(item.hectaresWorked),
     fuelLiters: String(item.fuelLiters),
     fuelItemId: item.fuelItemId ?? "",
@@ -997,6 +1132,23 @@ function validateForm(kind: EntityKind, form: Record<string, any>): string | nul
     return null;
   }
 
+  if (kind === "work-order-plans") {
+    if (!form.title?.trim()) return "El título es obligatorio";
+
+    if (Array.isArray(form.chemicals)) {
+      for (const chemical of form.chemicals) {
+        if (chemical.product?.trim()) {
+          if (!chemical.quantity?.trim()) return "La cantidad del químico es obligatoria";
+          const quantity = Number(chemical.quantity);
+          if (Number.isNaN(quantity) || quantity <= 0) return "La cantidad del químico debe ser mayor a cero";
+          if (!chemical.unit?.trim()) return "La unidad del químico es obligatoria";
+        }
+      }
+    }
+
+    return null;
+  }
+
   if (!form.machineryId?.trim()) return "La maquinaria es obligatoria";
   if (!form.operatorId?.trim()) return "El operador es obligatorio";
   if (!form.fuelItemId?.trim()) return "El tanque es obligatorio";
@@ -1027,7 +1179,7 @@ function validateForm(kind: EntityKind, form: Record<string, any>): string | nul
 function buildPayload(
   kind: EntityKind,
   form: Record<string, string>,
-  options: { customers: CustomerOption[]; machineries: MachineryOption[]; inventoryItems?: InventoryItemOption[] }
+  options: { customers: CustomerOption[]; machineries: MachineryOption[]; inventoryItems?: InventoryItemOption[]; workOrderPlans?: WorkOrderPlanOption[] }
 ) {
   if (kind === "users") {
     return {
@@ -1090,6 +1242,31 @@ function buildPayload(
     };
   }
 
+  if (kind === "work-order-plans") {
+    const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
+
+    return {
+      title: form.title,
+      plot: form.plot || "Sin informar",
+      customerId: form.customerId || null,
+      customer: selectedCustomer?.name ?? form.customerId ?? "Sin informar",
+      assignedOperatorId: form.assignedOperatorId || null,
+      assignedOperatorName: form.assignedOperatorName || null,
+      instructions: form.instructions || null,
+      plannedAt: form.plannedAt ? new Date(form.plannedAt).toISOString() : null,
+      chemicals: Array.isArray(form.chemicals)
+        ? form.chemicals
+          .filter((chemical: any) => chemical.product?.trim())
+          .map((chemical: any) => ({
+            inventoryItemId: chemical.inventoryItemId || null,
+            product: chemical.product,
+            quantity: Number(chemical.quantity),
+            unit: chemical.unit
+          }))
+        : []
+    };
+  }
+
   const selectedMachinery = options.machineries.find((machinery) => machinery.id === form.machineryId);
   const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
 
@@ -1098,6 +1275,7 @@ function buildPayload(
     machinery: selectedMachinery?.name ?? form.machineryId ?? "",
     operatorId: form.operatorId || null,
     operatorName: form.operatorName,
+    workOrderPlanId: form.workOrderPlanId || null,
     hectaresWorked: Number(form.hectaresWorked),
     fuelLiters: Number(form.fuelLiters),
     fuelItemId: form.fuelItemId || null,
@@ -1126,7 +1304,7 @@ function getStatusOptions(kind: EntityKind) {
     return TRIP_STATUS_OPTIONS;
   }
 
-  if (kind === "customers" || kind === "machineries" || kind === "inventory" || kind === "lots") {
+  if (kind === "customers" || kind === "machineries" || kind === "inventory" || kind === "lots" || kind === "work-order-plans") {
     return [
       { value: "active", label: "Activos" },
       { value: "inactive", label: "Inactivos" }
@@ -1147,6 +1325,7 @@ function renderFields(
     machineryOptions: MachineryOption[];
     inventoryItems?: InventoryItemOption[];
     lotOptions?: LotOption[];
+    workOrderPlanOptions?: WorkOrderPlanOption[];
   }
 ) {
   if (kind === "users") {
@@ -1453,6 +1632,153 @@ function renderFields(
     );
   }
 
+  if (kind === "work-order-plans") {
+    const chemicalItems = options.inventoryItems?.filter((item) => item.type === "CHEMICAL") ?? [];
+
+    const updateChemicalLine = (index: number, field: string, value: string) => {
+      setForm((current) => ({
+        ...current,
+        chemicals: current.chemicals.map((item: any, itemIndex: number) =>
+          itemIndex === index ? { ...item, [field]: value } : item
+        )
+      }));
+    };
+
+    const addChemicalLine = () => {
+      setForm((current) => ({
+        ...current,
+        chemicals: [
+          ...(current.chemicals ?? []),
+          { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+        ]
+      }));
+    };
+
+    const removeChemicalLine = (index: number) => {
+      setForm((current) => ({
+        ...current,
+        chemicals: (current.chemicals ?? []).filter((_: any, itemIndex: number) => itemIndex !== index)
+      }));
+    };
+
+    return (
+      <>
+        <div className="space-y-2">
+          <Label htmlFor="title">Título</Label>
+          <Input id="title" value={form.title ?? ""} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="plot">Lote</Label>
+          <Input id="plot" value={form.plot ?? ""} onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="customerId">Cliente</Label>
+          <select id="customerId" value={form.customerId ?? ""} onChange={(event) => setForm((current) => ({ ...current, customerId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="">Seleccionar cliente</option>
+            {options.customerOptions.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="assignedOperatorId">Maquinista</Label>
+          <select id="assignedOperatorId" value={form.assignedOperatorId ?? ""} onChange={(event) => {
+            const selectedUser = options.operatorOptions.find((user) => user.id === event.target.value);
+            setForm((current) => ({
+              ...current,
+              assignedOperatorId: event.target.value,
+              assignedOperatorName: selectedUser?.name ?? ""
+            }));
+          }} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="">Sin asignar</option>
+            {options.operatorOptions.map((user) => (
+              <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="plannedAt">Fecha planificada</Label>
+          <Input id="plannedAt" type="date" value={form.plannedAt ?? ""} onChange={(event) => setForm((current) => ({ ...current, plannedAt: event.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="instructions">Instrucciones</Label>
+          <textarea id="instructions" value={form.instructions ?? ""} onChange={(event) => setForm((current) => ({ ...current, instructions: event.target.value }))} className="min-h-[7rem] w-full rounded-md border border-slate-300 px-4 py-3 text-base text-slate-900" />
+        </div>
+        <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-700">Productos químicos planificados</p>
+            <button
+              type="button"
+              onClick={addChemicalLine}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Agregar químico
+            </button>
+          </div>
+          {(form.chemicals ?? []).map((chemical: any, index: number) => (
+            <div key={index} className="grid gap-3 sm:grid-cols-4">
+              <div className="sm:col-span-2">
+                <Label htmlFor={`chemical-inventory-${index}`}>Químico</Label>
+                <select
+                  id={`chemical-inventory-${index}`}
+                  value={chemical.inventoryItemId ?? ""}
+                  onChange={(event) => {
+                    const inventoryItemId = event.target.value;
+                    const selectedItem = chemicalItems.find((item) => item.id === inventoryItemId);
+                    updateChemicalLine(index, "inventoryItemId", inventoryItemId);
+                    if (selectedItem) {
+                      updateChemicalLine(index, "product", selectedItem.name);
+                      updateChemicalLine(index, "unit", selectedItem.unit);
+                    }
+                  }}
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Seleccionar químico</option>
+                  {chemicalItems.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor={`chemical-quantity-${index}`}>Cantidad</Label>
+                <Input
+                  id={`chemical-quantity-${index}`}
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={chemical.quantity ?? ""}
+                  onChange={(event) => updateChemicalLine(index, "quantity", event.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor={`chemical-unit-${index}`}>Unidad</Label>
+                <select
+                  id={`chemical-unit-${index}`}
+                  value={chemical.unit ?? ""}
+                  onChange={(event) => updateChemicalLine(index, "unit", event.target.value)}
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  {UNIT_OPTIONS.map((unit) => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => removeChemicalLine(index)}
+                  className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   if (kind === "work-orders") {
     const fuelItems = options.inventoryItems?.filter((item) => item.type === "FUEL") ?? [];
     const chemicalItems = options.inventoryItems?.filter((item) => item.type === "CHEMICAL") ?? [];
@@ -1514,6 +1840,16 @@ function renderFields(
             <option value="">Seleccionar operador</option>
             {options.operatorOptions.map((user) => (
               <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="workOrderPlanId">Orden planificada (opcional)</Label>
+          <select id="workOrderPlanId" value={form.workOrderPlanId ?? ""} onChange={(event) => setForm((current) => ({ ...current, workOrderPlanId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+            <option value="">Sin plan</option>
+            {options.workOrderPlanOptions?.map((plan) => (
+              <option key={plan.id} value={plan.id}>{plan.title} · {plan.plot} · {plan.customer}</option>
             ))}
           </select>
         </div>

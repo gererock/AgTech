@@ -36,28 +36,29 @@ enum InventoryItemType {
 }
 
 model Lot {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String   @unique
-  hectares   Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  hectares  Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model InventoryItem {
-  id             String             @id @default(uuid()) @db.Uuid
-  name           String
-  type           InventoryItemType
-  unit           String
-  quantity       Float              @default(0)
-  minQuantity    Float              @default(0)
-  active         Boolean            @default(true)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id          String            @id @default(uuid()) @db.Uuid
+  name        String
+  type        InventoryItemType
+  unit        String
+  quantity    Float             @default(0)
+  minQuantity Float             @default(0)
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  fuelTrips      Trip[]             @relation("TripFuel")
-  agroTrips      Trip[]             @relation("TripAgro")
-  fuelWorkOrders WorkOrder[]        @relation("WorkOrderFuel")
-  chemicals      WorkOrderChemical[]
+  fuelTrips             Trip[]                  @relation("TripFuel")
+  agroTrips             Trip[]                  @relation("TripAgro")
+  fuelWorkOrders        WorkOrder[]             @relation("WorkOrderFuel")
+  chemicals             WorkOrderChemical[]
+  WorkOrderPlanChemical WorkOrderPlanChemical[]
 }
 
 model User {
@@ -69,60 +70,62 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tripsAsDriver        Trip[]      @relation("TripDriver")
-  workOrdersAsOperator WorkOrder[] @relation("WorkOrderOperator")
+  tripsAsDriver         Trip[]          @relation("TripDriver")
+  workOrdersAsOperator  WorkOrder[]     @relation("WorkOrderOperator")
+  workOrderPlansAsOwner WorkOrderPlan[] @relation("WorkOrderPlanOperator")
 }
 
 model Customer {
-  id              String   @id @default(uuid()) @db.Uuid
-  name            String
-  email           String?
-  phone           String?
-  address         String?
-  documentNumber  String?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  documentNumber String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  workOrders      WorkOrder[] @relation("WorkOrderCustomer")
+  workOrders    WorkOrder[]     @relation("WorkOrderCustomer")
+  WorkOrderPlan WorkOrderPlan[]
 }
 
 model Machinery {
-  id              String   @id @default(uuid()) @db.Uuid
-  name            String
-  type            String?
-  brand           String?
-  identifier      String?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  type       String?
+  brand      String?
+  identifier String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  workOrders      WorkOrder[] @relation("WorkOrderMachinery")
+  workOrders WorkOrder[] @relation("WorkOrderMachinery")
 }
 
 model Trip {
-  id              String     @id @default(uuid()) @db.Uuid
+  id              String         @id @default(uuid()) @db.Uuid
   truck           String?
   licensePlate    String
-  driverId        String?    @db.Uuid
-  driver          User?      @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  driverId        String?        @db.Uuid
+  driver          User?          @relation("TripDriver", fields: [driverId], references: [id], onDelete: SetNull)
   driverName      String
-  origin          String     @default("Sin informar")
-  destination     String     @default("Sin informar")
+  origin          String         @default("Sin informar")
+  destination     String         @default("Sin informar")
   product         String
   estimatedKg     Int
   loadedKg        Int?
   destinationKg   Int?
-  fuelLiters      Float?     @default(0)
-  fuelItemId      String?    @db.Uuid
+  fuelLiters      Float?         @default(0)
+  fuelItemId      String?        @db.Uuid
   fuelItem        InventoryItem? @relation("TripFuel", fields: [fuelItemId], references: [id], onDelete: SetNull)
-  agroItemId      String?    @db.Uuid
+  agroItemId      String?        @db.Uuid
   agroItem        InventoryItem? @relation("TripAgro", fields: [agroItemId], references: [id], onDelete: SetNull)
-  status          TripStatus @default(PENDING)
+  status          TripStatus     @default(PENDING)
   clientCreatedAt DateTime?
   syncedAt        DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([driverId])
   @@index([status])
@@ -130,31 +133,72 @@ model Trip {
 }
 
 model WorkOrder {
-  id                String   @id @default(uuid()) @db.Uuid
-  machineryId       String?  @db.Uuid
-  machineryCatalog  Machinery? @relation("WorkOrderMachinery", fields: [machineryId], references: [id], onDelete: SetNull)
-  machinery         String
-  operatorId        String?  @db.Uuid
-  operator          User?    @relation("WorkOrderOperator", fields: [operatorId], references: [id], onDelete: SetNull)
-  operatorName      String
-  hectaresWorked    Float
-  fuelLiters        Float
-  fuelItemId        String?   @db.Uuid
-  fuelItem          InventoryItem? @relation("WorkOrderFuel", fields: [fuelItemId], references: [id], onDelete: SetNull)
-  plot              String   @default("Sin informar")
-  customerId        String?  @db.Uuid
-  customerCatalog   Customer? @relation("WorkOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
-  customer          String   @default("Sin informar")
-  chemicals         WorkOrderChemical[]
-  clientCreatedAt   DateTime?
-  syncedAt          DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String              @id @default(uuid()) @db.Uuid
+  machineryId      String?             @db.Uuid
+  machineryCatalog Machinery?          @relation("WorkOrderMachinery", fields: [machineryId], references: [id], onDelete: SetNull)
+  machinery        String
+  operatorId       String?             @db.Uuid
+  operator         User?               @relation("WorkOrderOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+  operatorName     String
+  workOrderPlanId  String?             @db.Uuid
+  workOrderPlan    WorkOrderPlan?      @relation("WorkOrderPlanLink", fields: [workOrderPlanId], references: [id], onDelete: SetNull)
+  hectaresWorked   Float
+  fuelLiters       Float
+  fuelItemId       String?             @db.Uuid
+  fuelItem         InventoryItem?      @relation("WorkOrderFuel", fields: [fuelItemId], references: [id], onDelete: SetNull)
+  plot             String              @default("Sin informar")
+  customerId       String?             @db.Uuid
+  customerCatalog  Customer?           @relation("WorkOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  customer         String              @default("Sin informar")
+  chemicals        WorkOrderChemical[]
+  clientCreatedAt  DateTime?
+  syncedAt         DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@index([operatorId])
   @@index([machineryId])
   @@index([customerId])
+  @@index([workOrderPlanId])
   @@index([updatedAt])
+}
+
+model WorkOrderPlan {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  title               String
+  plot                String                  @default("Sin informar")
+  customerId          String?                 @db.Uuid
+  customer            String                  @default("Sin informar")
+  customerCatalog     Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedOperatorId  String?                 @db.Uuid
+  assignedOperator    User?                   @relation("WorkOrderPlanOperator", fields: [assignedOperatorId], references: [id], onDelete: SetNull)
+  assignedOperatorName String?                
+  instructions        String?
+  plannedAt           DateTime?
+  chemicals           WorkOrderPlanChemical[]
+  workOrders          WorkOrder[]             @relation("WorkOrderPlanLink")
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([customerId])
+  @@index([assignedOperatorId])
+  @@index([updatedAt])
+}
+
+model WorkOrderPlanChemical {
+  id              String         @id @default(uuid()) @db.Uuid
+  workOrderPlanId String         @db.Uuid
+  workOrderPlan   WorkOrderPlan  @relation(fields: [workOrderPlanId], references: [id], onDelete: Cascade)
+  inventoryItemId String?        @db.Uuid
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  product         String
+  quantity        Float
+  unit            String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([workOrderPlanId])
+  @@index([inventoryItemId])
 }
 
 model WorkOrderChemical {
