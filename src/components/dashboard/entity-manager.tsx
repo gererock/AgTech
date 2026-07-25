@@ -29,8 +29,6 @@ type WorkOrderPlanOption = {
   id: string;
   title: string;
   plot: string;
-  customerId: string | null;
-  customer: string;
 };
 
 type CustomerOption = {
@@ -569,7 +567,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <p className="text-sm text-slate-600">{item.operatorName}</p>
                       </div>
                     </div>
-                    <p className="mt-2 text-sm text-slate-600">{item.plot} · {item.customer}</p>
+                    <p className="mt-2 text-sm text-slate-600">{item.plot}</p>
                     <p className="text-sm text-slate-600">Ha {item.hectaresWorked} · {item.fuelLiters} L</p>
                     <div className="mt-3 flex gap-2">
                       <Button type="button" variant="outline" onClick={() => handleEdit(item)} className="flex-1">Editar</Button>
@@ -587,7 +585,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <p className="font-black">{item.title}</p>
                         <p className="text-sm text-slate-600">{item.plot ?? "Sin lote"}</p>
                       </div>
-                      <span className="rounded-sm bg-slate-100 px-2 py-1 text-xs font-black">{item.customer ?? "Sin cliente"}</span>
                     </div>
                     <p className="mt-2 text-sm text-slate-600">{item.instructions ?? "Sin instrucciones"}</p>
                     <div className="mt-3 flex gap-2">
@@ -728,7 +725,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <th className="py-2 pr-3">Maquinaria</th>
                       <th className="py-2 pr-3">Operador</th>
                       <th className="py-2 pr-3">Ha</th>
-                      <th className="py-2 pr-3">Lote / Cliente</th>
+                      <th className="py-2 pr-3">Lote</th>
                       <th className="py-2 pr-3">Acciones</th>
                     </tr>
                   </thead>
@@ -738,7 +735,7 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3 font-bold">{item.machinery}</td>
                         <td className="py-2 pr-3">{item.operatorName}</td>
                         <td className="py-2 pr-3">{item.hectaresWorked}</td>
-                        <td className="py-2 pr-3 text-slate-600">{item.plot} · {item.customer}</td>
+                        <td className="py-2 pr-3 text-slate-600">{item.plot}</td>
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
@@ -756,7 +753,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                     <tr>
                       <th className="py-2 pr-3">Título</th>
                       <th className="py-2 pr-3">Lote</th>
-                      <th className="py-2 pr-3">Cliente</th>
                       <th className="py-2 pr-3">Maquinista</th>
                       <th className="py-2 pr-3">Fecha</th>
                       <th className="py-2 pr-3">Acciones</th>
@@ -767,7 +763,6 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <tr key={item.id}>
                         <td className="py-2 pr-3 font-bold">{item.title}</td>
                         <td className="py-2 pr-3">{item.plot ?? "Sin lote"}</td>
-                        <td className="py-2 pr-3">{item.customer ?? "Sin cliente"}</td>
                         <td className="py-2 pr-3">{item.assignedOperatorName ?? "Sin asignar"}</td>
                         <td className="py-2 pr-3">{item.plannedAt ? new Date(item.plannedAt).toLocaleDateString("es-AR") : "Sin fecha"}</td>
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
@@ -966,7 +961,6 @@ function getInitialForm(kind: EntityKind): Record<string, any> {
     return {
       title: "",
       plot: "",
-      customerId: "",
       assignedOperatorId: "",
       assignedOperatorName: "",
       instructions: "",
@@ -985,7 +979,6 @@ function getInitialForm(kind: EntityKind): Record<string, any> {
     fuelLiters: "",
     fuelItemId: "",
     plot: "",
-    customerId: "",
     chemicals: [
       { inventoryItemId: "", product: "", quantity: "", unit: "L" }
     ]
@@ -1050,7 +1043,6 @@ function buildFormState(kind: EntityKind, item: any): Record<string, any> {
     return {
       title: item.title,
       plot: item.plot ?? "",
-      customerId: item.customerId ?? "",
       assignedOperatorId: item.assignedOperatorId ?? "",
       assignedOperatorName: item.assignedOperatorName ?? "",
       instructions: item.instructions ?? "",
@@ -1072,7 +1064,6 @@ function buildFormState(kind: EntityKind, item: any): Record<string, any> {
     fuelLiters: String(item.fuelLiters),
     fuelItemId: item.fuelItemId ?? "",
     plot: item.plot,
-    customerId: item.customerId ?? "",
     chemicals: (item.chemicals ?? []).map((chemical: any) => ({
       inventoryItemId: chemical.inventoryItemId ?? "",
       product: chemical.product ?? "",
@@ -1154,7 +1145,6 @@ function validateForm(kind: EntityKind, form: Record<string, any>): string | nul
   if (!form.fuelItemId?.trim()) return "El tanque es obligatorio";
   if (!form.hectaresWorked?.trim()) return "Las hectáreas trabajadas son obligatorias";
   if (!form.fuelLiters?.trim()) return "Los litros son obligatorios";
-  if (!form.customerId?.trim()) return "El cliente es obligatorio";
 
   const hectaresWorked = Number(form.hectaresWorked);
   const fuelLiters = Number(form.fuelLiters);
@@ -1243,13 +1233,9 @@ function buildPayload(
   }
 
   if (kind === "work-order-plans") {
-    const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
-
     return {
       title: form.title,
       plot: form.plot || "Sin informar",
-      customerId: form.customerId || null,
-      customer: selectedCustomer?.name ?? form.customerId ?? "Sin informar",
       assignedOperatorId: form.assignedOperatorId || null,
       assignedOperatorName: form.assignedOperatorName || null,
       instructions: form.instructions || null,
@@ -1268,7 +1254,6 @@ function buildPayload(
   }
 
   const selectedMachinery = options.machineries.find((machinery) => machinery.id === form.machineryId);
-  const selectedCustomer = options.customers.find((customer) => customer.id === form.customerId);
 
   return {
     machineryId: form.machineryId || null,
@@ -1280,8 +1265,6 @@ function buildPayload(
     fuelLiters: Number(form.fuelLiters),
     fuelItemId: form.fuelItemId || null,
     plot: form.plot,
-    customerId: form.customerId || null,
-    customer: selectedCustomer?.name ?? form.customerId ?? "",
     chemicals: Array.isArray(form.chemicals)
       ? form.chemicals
         .filter((chemical: any) => chemical.product?.trim())
@@ -1672,15 +1655,6 @@ function renderFields(
           <Input id="plot" value={form.plot ?? ""} onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="customerId">Cliente</Label>
-          <select id="customerId" value={form.customerId ?? ""} onChange={(event) => setForm((current) => ({ ...current, customerId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-            <option value="">Seleccionar cliente</option>
-            {options.customerOptions.map((customer) => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="assignedOperatorId">Maquinista</Label>
           <select id="assignedOperatorId" value={form.assignedOperatorId ?? ""} onChange={(event) => {
             const selectedUser = options.operatorOptions.find((user) => user.id === event.target.value);
@@ -1849,7 +1823,7 @@ function renderFields(
           <select id="workOrderPlanId" value={form.workOrderPlanId ?? ""} onChange={(event) => setForm((current) => ({ ...current, workOrderPlanId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
             <option value="">Sin plan</option>
             {options.workOrderPlanOptions?.map((plan) => (
-              <option key={plan.id} value={plan.id}>{plan.title} · {plan.plot} · {plan.customer}</option>
+              <option key={plan.id} value={plan.id}>{plan.title} · {plan.plot}</option>
             ))}
           </select>
         </div>
@@ -1897,16 +1871,6 @@ function renderFields(
             <option value="">Seleccionar tanque</option>
             {fuelItems.map((item) => (
               <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="customerId">Cliente</Label>
-          <select id="customerId" value={form.customerId ?? ""} onChange={(event) => setForm((current) => ({ ...current, customerId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900" required>
-            <option value="">Seleccionar cliente</option>
-            {options.customerOptions.map((customer) => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
             ))}
           </select>
         </div>
@@ -2041,15 +2005,6 @@ function renderFields(
             ))}
           </datalist>
         ) : null}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="customer">Cliente</Label>
-        <select id="customer" value={form.customerId ?? ""} onChange={(event) => setForm((current) => ({ ...current, customerId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
-          <option value="">Seleccionar cliente</option>
-          {options.customerOptions.map((customer) => (
-            <option key={customer.id} value={customer.id}>{customer.name}</option>
-          ))}
-        </select>
       </div>
     </>
   );

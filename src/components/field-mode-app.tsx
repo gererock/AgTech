@@ -35,7 +35,6 @@ const initialWorkOrderForm = {
   fuelLiters: "",
   fuelItemId: "",
   plot: "",
-  customer: "",
   chemicals: [
     { inventoryItemId: "", product: "", quantity: "", unit: "L" }
   ]
@@ -47,11 +46,10 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const [mode, setMode] = useState<FieldMode>(initialMode);
   const [tripForm, setTripForm] = useState(initialTripForm);
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
-  const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [lots, setLots] = useState<Array<{ id: string; name: string; hectares: number }>>([]);
-  const [assignedPlans, setAssignedPlans] = useState<Array<{ id: string; title: string; plot: string; customer: string; instructions?: string | null; plannedAt?: string | null; assignedOperatorName?: string | null }>>([]);
+  const [assignedPlans, setAssignedPlans] = useState<Array<{ id: string; title: string; plot: string; instructions?: string | null; plannedAt?: string | null; assignedOperatorName?: string | null }>>([]);
   const [inventoryItems, setInventoryItems] = useState<Array<{ id: string; name: string; type: "FUEL" | "CHEMICAL" | "AGRO"; unit: string; quantity: number }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -68,18 +66,13 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [customersResponse, machineriesResponse, usersResponse, lotsResponse, inventoryResponse, plansResponse] = await Promise.all([
-          fetch("/api/admin/customers"),
+        const [machineriesResponse, usersResponse, lotsResponse, inventoryResponse, plansResponse] = await Promise.all([
           fetch("/api/admin/machineries"),
           fetch("/api/admin/users?status=MACHINE_OPERATOR"),
           fetch("/api/admin/lots"),
           fetch("/api/admin/inventory"),
           fetch("/api/admin/work-order-plans")
         ]);
-
-        if (customersResponse.ok) {
-          setCustomers(await customersResponse.json());
-        }
         if (machineriesResponse.ok) {
           setMachineries(await machineriesResponse.json());
         }
@@ -96,7 +89,6 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
           setAssignedPlans(await plansResponse.json());
         }
       } catch {
-        setCustomers([]);
         setMachineries([]);
         setUsers([]);
         setLots([]);
@@ -164,7 +156,6 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
       fuelLiters: Number(workOrderForm.fuelLiters),
       fuelItemId: workOrderForm.fuelItemId || undefined,
       plot: workOrderForm.plot.trim() || undefined,
-      customer: workOrderForm.customer.trim() || undefined,
       chemicals: (workOrderForm.chemicals ?? [])
         .filter((item) => item.product.trim() !== "")
         .map((item) => ({
@@ -316,7 +307,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold text-slate-900">{plan.title}</p>
-                      <p className="text-sm text-slate-600">{plan.plot} · {plan.customer}</p>
+                      <p className="text-sm text-slate-600">{plan.plot}</p>
                     </div>
                     {plan.plannedAt ? (
                       <span className="text-xs text-slate-500">{new Date(plan.plannedAt).toLocaleDateString("es-AR")}</span>
@@ -628,21 +619,6 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
                     <option key={item.id} value={item.id}>
                       {item.name} ({item.quantity} {item.unit})
                     </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Cliente" htmlFor="customer">
-                <select
-                  id="customer"
-                  value={workOrderForm.customer}
-                  onChange={(event) =>
-                    setWorkOrderForm((current) => ({ ...current, customer: event.target.value }))
-                  }
-                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
-                >
-                  <option value="">Seleccionar cliente</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.name}>{customer.name}</option>
                   ))}
                 </select>
               </Field>

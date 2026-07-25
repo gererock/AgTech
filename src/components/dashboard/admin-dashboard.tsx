@@ -669,7 +669,7 @@ function WorkOrdersTable({ rows }: { rows: WorkOrderTableRow[] }) {
             </span>
           </div>
           <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-600">
-            <span>{row.customer}</span>
+            <span>{row.plot}</span>
             <span>{numberFormatter.format(row.fuelLiters)} L</span>
           </div>
         </div>
@@ -730,9 +730,9 @@ function CustomerReport({ rows }: { rows: CustomerReportRow[] }) {
   return (
     <div className="grid gap-3">
       {rows.map((row) => (
-        <div key={row.customer}>
+        <div key={row.label}>
           <div className="mb-2 flex items-center justify-between gap-3 text-sm font-extrabold">
-            <span className="truncate">{row.customer}</span>
+            <span className="truncate">{row.label}</span>
             <span>{numberFormatter.format(row.hectares)} ha</span>
           </div>
           <div className="flex items-center justify-between text-xs font-bold text-slate-600">

@@ -97,7 +97,6 @@ export function createOfflineWorkOrder(draft: WorkOrderDraft): OfflineWorkOrder 
     fuelLiters: draft.fuelLiters,
     fuelItemId: draft.fuelItemId || null,
     plot: draft.plot?.trim() || "Sin informar",
-    customer: draft.customer?.trim() || "Sin informar",
     chemicals: draft.chemicals ?? [],
     createdAt: now,
     updatedAt: now,

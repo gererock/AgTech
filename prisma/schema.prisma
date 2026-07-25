@@ -85,9 +85,6 @@ model Customer {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  workOrders    WorkOrder[]     @relation("WorkOrderCustomer")
-  WorkOrderPlan WorkOrderPlan[]
 }
 
 model Machinery {
@@ -147,9 +144,6 @@ model WorkOrder {
   fuelItemId       String?             @db.Uuid
   fuelItem         InventoryItem?      @relation("WorkOrderFuel", fields: [fuelItemId], references: [id], onDelete: SetNull)
   plot             String              @default("Sin informar")
-  customerId       String?             @db.Uuid
-  customerCatalog  Customer?           @relation("WorkOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
-  customer         String              @default("Sin informar")
   chemicals        WorkOrderChemical[]
   clientCreatedAt  DateTime?
   syncedAt         DateTime?
@@ -158,7 +152,6 @@ model WorkOrder {
 
   @@index([operatorId])
   @@index([machineryId])
-  @@index([customerId])
   @@index([workOrderPlanId])
   @@index([updatedAt])
 }
@@ -167,12 +160,9 @@ model WorkOrderPlan {
   id                  String                  @id @default(uuid()) @db.Uuid
   title               String
   plot                String                  @default("Sin informar")
-  customerId          String?                 @db.Uuid
-  customer            String                  @default("Sin informar")
-  customerCatalog     Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
   assignedOperatorId  String?                 @db.Uuid
   assignedOperator    User?                   @relation("WorkOrderPlanOperator", fields: [assignedOperatorId], references: [id], onDelete: SetNull)
-  assignedOperatorName String?                
+  assignedOperatorName String?
   instructions        String?
   plannedAt           DateTime?
   chemicals           WorkOrderPlanChemical[]
@@ -180,7 +170,6 @@ model WorkOrderPlan {
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
 
-  @@index([customerId])
   @@index([assignedOperatorId])
   @@index([updatedAt])
 }

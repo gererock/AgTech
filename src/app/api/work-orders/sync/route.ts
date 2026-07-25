@@ -47,7 +47,6 @@ export async function POST(request: Request) {
               fuelLiters: record.fuelLiters,
               fuelItemId: record.fuelItemId || null,
               plot: record.plot || "Sin informar",
-              customer: record.customer || "Sin informar",
               clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
               syncedAt: now
             }
@@ -100,7 +99,6 @@ export async function POST(request: Request) {
             fuelLiters: record.fuelLiters,
             fuelItemId: record.fuelItemId || null,
             plot: record.plot || "Sin informar",
-            customer: record.customer || "Sin informar",
             clientCreatedAt: record.createdAt ? new Date(record.createdAt) : null,
             syncedAt: now
           }

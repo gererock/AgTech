@@ -21,9 +21,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       operatorName: body.operatorName,
       hectaresWorked: Number(body.hectaresWorked),
       fuelLiters: Number(body.fuelLiters),
-      plot: body.plot,
-      customerId: body.customerId || null,
-      customer: body.customer
+      plot: body.plot
     },
     select: {
       id: true,
@@ -33,9 +31,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       operatorId: true,
       hectaresWorked: true,
       fuelLiters: true,
-      plot: true,
-      customerId: true,
-      customer: true
+      plot: true
     }
   });
 

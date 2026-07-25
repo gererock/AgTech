@@ -22,8 +22,7 @@ export async function GET(request: Request) {
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
-      { plot: { contains: search, mode: "insensitive" } },
-      { customer: { contains: search, mode: "insensitive" } }
+      { plot: { contains: search, mode: "insensitive" } }
     ];
   }
 
@@ -34,8 +33,6 @@ export async function GET(request: Request) {
       id: true,
       title: true,
       plot: true,
-      customerId: true,
-      customer: true,
       assignedOperatorId: true,
       assignedOperatorName: true,
       instructions: true,
@@ -62,8 +59,6 @@ export async function POST(request: Request) {
       data: {
         title: body.title?.trim(),
         plot: body.plot?.trim() || "Sin informar",
-        customerId: body.customerId || null,
-        customer: body.customer || "Sin informar",
         assignedOperatorId: body.assignedOperatorId || null,
         assignedOperatorName: body.assignedOperatorName || null,
         instructions: body.instructions?.trim() || null,

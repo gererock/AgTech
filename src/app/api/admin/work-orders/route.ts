@@ -32,8 +32,7 @@ export async function GET(request: Request) {
       OR: [
         { machinery: { contains: search, mode: "insensitive" } },
         { operatorName: { contains: search, mode: "insensitive" } },
-        { plot: { contains: search, mode: "insensitive" } },
-        { customer: { contains: search, mode: "insensitive" } }
+        { plot: { contains: search, mode: "insensitive" } }
       ]
     });
   }
@@ -50,8 +49,6 @@ export async function GET(request: Request) {
       fuelLiters: true,
       fuelItemId: true,
       plot: true,
-      customerId: true,
-      customer: true,
       updatedAt: true
     }
   });
@@ -90,9 +87,7 @@ export async function POST(request: Request) {
         hectaresWorked: parsed.data.hectaresWorked,
         fuelLiters: parsed.data.fuelLiters,
         fuelItemId: parsed.data.fuelItemId || null,
-        plot: parsed.data.plot || "Sin informar",
-        customerId: rawBody.customerId || null,
-        customer: parsed.data.customer || "Sin informar"
+        plot: parsed.data.plot || "Sin informar"
       },
       select: {
         id: true,

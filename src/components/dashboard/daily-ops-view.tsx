@@ -28,7 +28,6 @@ type WorkOrderRecord = {
   hectaresWorked: number;
   fuelLiters: number;
   plot: string;
-  customer: string;
   updatedAt: string;
 };
 
@@ -302,7 +301,7 @@ export function DailyOpsView({ initialDate }: DailyOpsViewProps) {
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-black">{workOrder.machinery} - {workOrder.operatorName}</p>
-                      <p className="text-sm text-slate-600">{workOrder.plot} - {workOrder.customer}</p>
+                      <p className="text-sm text-slate-600">{workOrder.plot}</p>
                     </div>
                     <div className="text-right text-sm font-bold text-slate-600">
                       <p>{workOrder.hectaresWorked} ha</p>

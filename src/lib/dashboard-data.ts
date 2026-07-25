@@ -24,7 +24,7 @@ export interface FuelReportRow {
 }
 
 export interface CustomerReportRow {
-  customer: string;
+  label: string;
   hectares: number;
   fuelLiters: number;
   workOrders: number;
@@ -49,7 +49,6 @@ export interface WorkOrderTableRow {
   hectaresWorked: number;
   fuelLiters: number;
   plot: string;
-  customer: string;
   syncedAt: string;
 }
 
@@ -241,7 +240,7 @@ function buildOverview(input: {
       estimatedCost: asset.fuelLiters * fuelCostPerLiter
     })),
     customerReport: customers.map((customer) => ({
-      customer: customer.name,
+      label: customer.name,
       hectares: customer.hectares,
       fuelLiters: customer.fuelLiters,
       workOrders: customer.records
@@ -294,11 +293,11 @@ function buildAssetRows(workOrders: WorkOrderTableRow[]): AssetRow[] {
 }
 
 function buildCustomerRows(workOrders: WorkOrderTableRow[]): AssetRow[] {
-  const byCustomer = groupWorkOrders(workOrders, (workOrder) => workOrder.customer);
+  const byPlot = groupWorkOrders(workOrders, (workOrder) => workOrder.plot);
 
-  return Array.from(byCustomer.entries()).map(([customer, records]) => ({
-    name: customer,
-    owner: records[0]?.plot ?? "Sin lote",
+  return Array.from(byPlot.entries()).map(([plot, records]) => ({
+    name: plot || "Sin lote",
+    owner: records[0]?.operatorName ?? "Sin operador",
     records: records.length,
     hectares: records.reduce((sum, record) => sum + record.hectaresWorked, 0),
     fuelLiters: records.reduce((sum, record) => sum + record.fuelLiters, 0),

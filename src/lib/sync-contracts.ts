@@ -41,7 +41,6 @@ export const workOrderSyncRecordSchema = z
     fuelLiters: z.coerce.number().nonnegative(),
     fuelItemId: optionalUuidSchema,
     plot: optionalTextSchema,
-    customer: optionalTextSchema,
     chemicals: z.array(workOrderChemicalItemSchema).optional(),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional()
@@ -85,7 +84,6 @@ export const workOrderCreateSchema = z
     fuelLiters: z.coerce.number().nonnegative(),
     fuelItemId: optionalUuidSchema,
     plot: optionalTextSchema,
-    customer: optionalTextSchema,
     chemicals: z
       .array(
         z.object({

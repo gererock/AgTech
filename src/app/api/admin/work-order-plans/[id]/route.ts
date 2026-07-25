@@ -18,8 +18,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       data: {
         title: body.title?.trim(),
         plot: body.plot?.trim() || "Sin informar",
-        customerId: body.customerId || null,
-        customer: body.customer || "Sin informar",
         assignedOperatorId: body.assignedOperatorId || null,
         assignedOperatorName: body.assignedOperatorName || null,
         instructions: body.instructions?.trim() || null,
