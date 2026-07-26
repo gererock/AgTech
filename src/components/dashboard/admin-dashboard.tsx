@@ -8,10 +8,13 @@ import {
   AlertTriangle,
   BarChart3,
   Building2,
+  CalendarCheck,
   ClipboardList,
+  FileText,
   Fuel,
   Gauge,
   LayoutDashboard,
+  Package,
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
@@ -210,7 +213,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             ) : null}
             {canManageCatalogs ? (
               <SidebarItem
-                icon={<ClipboardList className="h-4 w-4" />}
+                icon={<CalendarCheck className="h-4 w-4" />}
                 label="Órdenes planificadas"
                 active={activeSection === "work-order-plans"}
                 onClick={() => handleSectionChange("work-order-plans")}
@@ -220,7 +223,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
             ) : null}
             {canManageCatalogs ? (
               <SidebarItem
-                icon={<Fuel className="h-4 w-4" />}
+                icon={<Package className="h-4 w-4" />}
                 label="Inventario"
                 active={activeSection === "inventory"}
                 onClick={() => handleSectionChange("inventory")}
