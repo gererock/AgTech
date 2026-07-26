@@ -38,11 +38,25 @@ export async function GET(request: Request) {
       instructions: true,
       plannedAt: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      chemicals: {
+        select: {
+          inventoryItemId: true,
+          product: true,
+          quantity: true,
+          unit: true
+        }
+      }
     }
   });
 
-  return NextResponse.json(plans.map((p) => ({ ...p, plannedAt: p.plannedAt?.toISOString() ?? null, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() })));
+  return NextResponse.json(plans.map((p) => ({
+    ...p,
+    plannedAt: p.plannedAt?.toISOString() ?? null,
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
+    chemicals: p.chemicals.map((chemical) => ({ ...chemical }))
+  })));
 }
 
 export async function POST(request: Request) {

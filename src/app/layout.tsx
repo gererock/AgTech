@@ -3,13 +3,13 @@ import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "agtech",
+  title: "AgTech",
   description: "Plataforma mobile-first para carga offline de viajes y partes diarios agropecuarios.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "agtech"
+    title: "AgTech"
   },
   icons: {
     icon: "/icon.svg",

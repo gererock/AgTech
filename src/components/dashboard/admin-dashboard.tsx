@@ -128,7 +128,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
         <aside className={cn("border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:min-h-screen lg:shrink-0 lg:border-b-0 lg:border-r lg:flex lg:flex-col", isSidebarCollapsed ? "w-full lg:w-20" : "w-full lg:w-64", !isSidebarCollapsed ? "block" : "hidden lg:flex")}> 
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5 sm:py-5">
             <div className={cn("min-w-0", isSidebarCollapsed && "hidden")}> 
-              <p className="text-xs font-extrabold uppercase text-teal-700">agtech</p>
+              <p className="text-xs font-extrabold uppercase text-teal-700">AGTECH</p>
               <h1 className="mt-1 text-xl font-black">Backoffice</h1>
             </div>
             <button

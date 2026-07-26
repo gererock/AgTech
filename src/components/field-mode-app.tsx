@@ -13,6 +13,22 @@ import { tripCreateSchema, workOrderCreateSchema } from "@/lib/sync-contracts";
 
 type FieldMode = "trip" | "work-order";
 
+type AssignedPlan = {
+  id: string;
+  title: string;
+  plot: string;
+  instructions?: string | null;
+  plannedAt?: string | null;
+  assignedOperatorId?: string | null;
+  assignedOperatorName?: string | null;
+  chemicals?: Array<{
+    inventoryItemId?: string | null;
+    product: string;
+    quantity: number;
+    unit: string;
+  }>;
+};
+
 interface FieldModeAppProps {
   initialMode?: FieldMode;
 }
@@ -27,29 +43,34 @@ const initialTripForm = {
   agroItemId: ""
 };
 
-const initialWorkOrderForm = {
-  machinery: "",
-  operatorId: "",
-  operatorName: "",
-  hectaresWorked: "",
-  fuelLiters: "",
-  fuelItemId: "",
-  plot: "",
-  chemicals: [
-    { inventoryItemId: "", product: "", quantity: "", unit: "L" }
-  ]
-};
+function createInitialWorkOrderForm() {
+  return {
+    machinery: "",
+    operatorId: "",
+    operatorName: "",
+    hectaresWorked: "",
+    fuelLiters: "",
+    fuelItemId: "",
+    plot: "",
+    chemicals: [
+      { inventoryItemId: "", product: "", quantity: "", unit: "L" }
+    ]
+  };
+}
 
+const initialWorkOrderForm = createInitialWorkOrderForm();
 const AGRO_UNIT_OPTIONS = ["L", "KG", "G", "ML", "M3"] as const;
 
-export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
+export function FieldModeApp({ initialMode = "work-order" }: FieldModeAppProps) {
   const [mode, setMode] = useState<FieldMode>(initialMode);
   const [tripForm, setTripForm] = useState(initialTripForm);
   const [workOrderForm, setWorkOrderForm] = useState(initialWorkOrderForm);
   const [machineries, setMachineries] = useState<Array<{ id: string; name: string }>>([]);
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [lots, setLots] = useState<Array<{ id: string; name: string; hectares: number }>>([]);
-  const [assignedPlans, setAssignedPlans] = useState<Array<{ id: string; title: string; plot: string; instructions?: string | null; plannedAt?: string | null; assignedOperatorName?: string | null }>>([]);
+  const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [showAllPlans, setShowAllPlans] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<Array<{ id: string; name: string; type: "FUEL" | "CHEMICAL" | "AGRO"; unit: string; quantity: number }>>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -152,6 +173,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
       machinery: workOrderForm.machinery.trim(),
       operatorId: workOrderForm.operatorId || undefined,
       operatorName: workOrderForm.operatorName.trim(),
+      workOrderPlanId: selectedPlanId || undefined,
       hectaresWorked: Number(workOrderForm.hectaresWorked),
       fuelLiters: Number(workOrderForm.fuelLiters),
       fuelItemId: workOrderForm.fuelItemId || undefined,
@@ -198,7 +220,8 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     try {
       const result = await saveWorkOrder(validation.data);
 
-      setWorkOrderForm(initialWorkOrderForm);
+      setSelectedPlanId("");
+      setWorkOrderForm(createInitialWorkOrderForm());
       setFeedback(
         result.synced
           ? "Parte diario guardado y sincronizado."
@@ -212,6 +235,8 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
   const fuelItems = inventoryItems.filter((item) => item.type === "FUEL");
   const chemicalItems = inventoryItems.filter((item) => item.type === "CHEMICAL");
   const agroItems = inventoryItems.filter((item) => item.type === "AGRO");
+  const selectedPlan = assignedPlans.find((plan) => plan.id === selectedPlanId) ?? null;
+  const visiblePlans = showAllPlans ? assignedPlans : assignedPlans.slice(0, 4);
 
   const createLot = async (name: string, hectares: number) => {
     try {
@@ -262,6 +287,28 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
     }));
   };
 
+  const applyPlanToForm = (plan: AssignedPlan | null) => {
+    if (!plan) {
+      setSelectedPlanId("");
+      setWorkOrderForm(createInitialWorkOrderForm());
+      return;
+    }
+
+    setSelectedPlanId(plan.id);
+    setWorkOrderForm({
+      ...createInitialWorkOrderForm(),
+      operatorId: plan.assignedOperatorId ?? "",
+      operatorName: plan.assignedOperatorName ?? "",
+      plot: plan.plot ?? "",
+      chemicals: (plan.chemicals ?? []).map((chemical) => ({
+        inventoryItemId: chemical.inventoryItemId ?? "",
+        product: chemical.product,
+        quantity: String(chemical.quantity),
+        unit: chemical.unit || "L"
+      }))
+    });
+  };
+
   return (
     <main className="min-h-screen pb-8">
       <OfflineStatusBanner
@@ -279,7 +326,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-extrabold uppercase text-teal-800">Modo campo</p>
-              <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">agtech</h1>
+              <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">AGTECH</h1>
             </div>
             <Link
               href="/dashboard"
@@ -295,46 +342,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
           </p>
         </header>
 
-        {assignedPlans.length > 0 ? (
-          <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4 text-slate-600" />
-              <h2 className="text-sm font-black text-slate-900">Planes asignados</h2>
-            </div>
-            <div className="space-y-2">
-              {assignedPlans.map((plan) => (
-                <div key={plan.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-slate-900">{plan.title}</p>
-                      <p className="text-sm text-slate-600">{plan.plot}</p>
-                    </div>
-                    {plan.plannedAt ? (
-                      <span className="text-xs text-slate-500">{new Date(plan.plannedAt).toLocaleDateString("es-AR")}</span>
-                    ) : null}
-                  </div>
-                  {plan.instructions ? <p className="mt-2 text-sm text-slate-700">{plan.instructions}</p> : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         <div className="grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setMode("trip")}
-            className={cn(
-              "flex h-14 items-center justify-center gap-2 rounded-md text-sm font-extrabold transition-colors",
-              mode === "trip"
-                ? "bg-teal-700 text-white"
-                : "bg-transparent text-slate-700 hover:bg-slate-100"
-            )}
-            aria-pressed={mode === "trip"}
-          >
-            <Truck className="h-5 w-5" />
-            Viaje
-          </button>
           <button
             type="button"
             onClick={() => setMode("work-order")}
@@ -349,7 +357,63 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
             <Tractor className="h-5 w-5" />
             Parte
           </button>
+          <button
+            type="button"
+            onClick={() => setMode("trip")}
+            className={cn(
+              "flex h-14 items-center justify-center gap-2 rounded-md text-sm font-extrabold transition-colors",
+              mode === "trip"
+                ? "bg-teal-700 text-white"
+                : "bg-transparent text-slate-700 hover:bg-slate-100"
+            )}
+            aria-pressed={mode === "trip"}
+          >
+            <Truck className="h-5 w-5" />
+            Viaje
+          </button>
         </div>
+
+        {mode === "work-order" && assignedPlans.length > 0 ? (
+          <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <LayoutDashboard className="h-4 w-4 text-slate-600" />
+              <h2 className="text-sm font-black text-slate-900">Planes asignados</h2>
+            </div>
+            <div className="space-y-2">
+              {visiblePlans.map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => {
+                    setMode("work-order");
+                    applyPlanToForm(plan);
+                  }}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition-colors hover:border-teal-300 hover:bg-teal-50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-900">{plan.title}</p>
+                      <p className="text-sm text-slate-600">{plan.plot}</p>
+                    </div>
+                    {plan.plannedAt ? (
+                      <span className="text-xs text-slate-500">{new Date(plan.plannedAt).toLocaleDateString("es-AR")}</span>
+                    ) : null}
+                  </div>
+                  {plan.instructions ? <p className="mt-2 text-sm text-slate-700">{plan.instructions}</p> : null}
+                </button>
+              ))}
+            </div>
+            {assignedPlans.length > 4 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllPlans((current) => !current)}
+                className="mt-3 text-sm font-semibold text-teal-700 hover:text-teal-800"
+              >
+                {showAllPlans ? "Ver menos" : "Ver más"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {feedback ? (
           <div className="flex items-start gap-3 rounded-md border border-teal-200 bg-teal-50 p-3 text-sm font-bold text-teal-900">
@@ -500,7 +564,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
           >
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-md bg-sky-600 text-white">
-                <Fuel className="h-6 w-6" />
+                <Tractor className="h-6 w-6" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-950">Parte Diario de Maquinaria</h2>
@@ -509,6 +573,31 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Plan asignado" htmlFor="selectedPlanId" className="sm:col-span-2">
+                <select
+                  id="selectedPlanId"
+                  value={selectedPlanId}
+                  onChange={(event) => {
+                    const planId = event.target.value;
+                    const plan = assignedPlans.find((item) => item.id === planId) ?? null;
+                    applyPlanToForm(plan);
+                  }}
+                  className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+                >
+                  <option value="">Sin plan</option>
+                  {assignedPlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.title} · {plan.plot}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {selectedPlan ? (
+                <div className="sm:col-span-2 rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">
+                  <p className="font-semibold">{selectedPlan.title}</p>
+                  {selectedPlan.instructions ? <p className="mt-1">{selectedPlan.instructions}</p> : null}
+                </div>
+              ) : null}
               <Field label="Maquinaria" htmlFor="machinery" className="sm:col-span-2">
                 <select
                   id="machinery"
