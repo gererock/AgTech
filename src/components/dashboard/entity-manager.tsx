@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -294,9 +295,9 @@ export function EntityManager({ kind }: EntityManagerProps) {
         const errorData = await response.json().catch(() => null);
         const issueText = errorData?.issues
           ? [
-              ...(errorData.issues.formErrors ?? []),
-              ...Object.values(errorData.issues.fieldErrors ?? {}).flat()
-            ].filter(Boolean).join(". ")
+            ...(errorData.issues.formErrors ?? []),
+            ...Object.values(errorData.issues.fieldErrors ?? {}).flat()
+          ].filter(Boolean).join(". ")
           : null;
         setMessage({ type: "error", text: issueText || errorData?.error || "No se pudo guardar el registro" });
         return;
@@ -418,9 +419,9 @@ export function EntityManager({ kind }: EntityManagerProps) {
         </div>
       ) : null}
 
-      {deleteTarget ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+      {deleteTarget ? createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setDeleteTarget(null)}>
+          <div className="mx-2 mt-4 w-full max-w-[min(92vw,28rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.20)]" onClick={(event) => event.stopPropagation()}>
             <div className="border-b border-slate-200 px-4 py-3 sm:px-6">
               <h3 className="text-base font-black">Confirmar eliminación</h3>
             </div>
@@ -434,12 +435,13 @@ export function EntityManager({ kind }: EntityManagerProps) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
 
-      {isFormOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
-          <div className="w-full max-w-3xl rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+      {isFormOpen ? createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
+          <div className="mt-4 w-full max-w-[min(92vw,48rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.20)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
               <h3 className="text-base font-black">{editingId ? getEditFormTitle(kind) : getCreateButtonLabel(kind)}</h3>
               <div className="flex items-center gap-2">
@@ -457,7 +459,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
 
       <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">

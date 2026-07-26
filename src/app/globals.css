@@ -27,16 +27,23 @@
 
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
 
   html {
+    position: relative;
     min-height: 100%;
+    margin: 0;
+    padding: 0;
     background: hsl(var(--background));
   }
 
   body {
-    min-height: 100%;
+    position: relative;
+    min-height: 100dvh;
     width: 100%;
+    margin: 0;
+    padding: 0;
     overflow-x: hidden;
     color: hsl(var(--foreground));
     background:
@@ -68,5 +75,21 @@
     width: min(100%, 100vw);
     max-width: 100%;
     overflow-x: hidden;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    min-height: 100svh;
+    min-height: 100dvh;
+    padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    background-color: rgba(2, 6, 23, 0.82);
+    backdrop-filter: blur(1px);
   }
 }
