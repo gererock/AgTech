@@ -475,8 +475,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
       ) : null}
 
       {isFormOpen ? createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
-          <div className="mt-4 w-full max-w-[min(92vw,48rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.20)]" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4" onClick={() => { resetForm(); setIsFormOpen(false); }}>
+          <div className="my-4 w-full max-w-[min(92vw,48rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.20)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
               <h3 className="text-base font-black">{editingId ? getEditFormTitle(kind) : getCreateButtonLabel(kind)}</h3>
               <div className="flex items-center gap-2">
