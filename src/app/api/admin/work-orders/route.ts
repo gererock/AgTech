@@ -44,16 +44,36 @@ export async function GET(request: Request) {
       id: true,
       machineryId: true,
       machinery: true,
+      operatorId: true,
       operatorName: true,
+      workOrderPlanId: true,
       hectaresWorked: true,
       fuelLiters: true,
       fuelItemId: true,
       plot: true,
+      workOrderPlan: {
+        select: {
+          title: true
+        }
+      },
+      chemicals: {
+        select: {
+          inventoryItemId: true,
+          product: true,
+          quantity: true,
+          unit: true
+        }
+      },
       updatedAt: true
     }
   });
 
-  return NextResponse.json(workOrders.map((workOrder) => ({ ...workOrder, updatedAt: workOrder.updatedAt.toISOString() })));
+  return NextResponse.json(workOrders.map((workOrder) => ({
+    ...workOrder,
+    workOrderPlanTitle: workOrder.workOrderPlan?.title ?? null,
+    chemicals: workOrder.chemicals.map((chemical) => ({ ...chemical })),
+    updatedAt: workOrder.updatedAt.toISOString()
+  })));
 }
 
 export async function POST(request: Request) {
@@ -93,11 +113,24 @@ export async function POST(request: Request) {
         id: true,
         machineryId: true,
         machinery: true,
+        operatorId: true,
         operatorName: true,
         workOrderPlanId: true,
         updatedAt: true
       }
     });
+
+    if (Array.isArray(parsed.data.chemicals) && parsed.data.chemicals.length > 0) {
+      await tx.workOrderChemical.createMany({
+        data: parsed.data.chemicals.map((chemical) => ({
+          workOrderId: createdWorkOrder.id,
+          inventoryItemId: chemical.inventoryItemId || null,
+          product: chemical.product,
+          quantity: chemical.quantity,
+          unit: chemical.unit
+        }))
+      });
+    }
 
     if (parsed.data.fuelItemId && parsed.data.fuelLiters > 0) {
       await tx.inventoryItem.updateMany({

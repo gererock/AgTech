@@ -46,6 +46,7 @@ const initialTripForm = {
 function createInitialWorkOrderForm() {
   return {
     machinery: "",
+    machineryId: "",
     operatorId: "",
     operatorName: "",
     hectaresWorked: "",
@@ -171,6 +172,7 @@ export function FieldModeApp({ initialMode = "work-order" }: FieldModeAppProps) 
 
     let payload = {
       machinery: workOrderForm.machinery.trim(),
+      machineryId: workOrderForm.machineryId || undefined,
       operatorId: workOrderForm.operatorId || undefined,
       operatorName: workOrderForm.operatorName.trim(),
       workOrderPlanId: selectedPlanId || undefined,
@@ -294,12 +296,17 @@ export function FieldModeApp({ initialMode = "work-order" }: FieldModeAppProps) 
       return;
     }
 
+    const matchingLot = plan.plot
+      ? lots.find((lot) => lot.name.toLowerCase() === plan.plot.toLowerCase())
+      : null;
+
     setSelectedPlanId(plan.id);
     setWorkOrderForm({
       ...createInitialWorkOrderForm(),
       operatorId: plan.assignedOperatorId ?? "",
       operatorName: plan.assignedOperatorName ?? "",
       plot: plan.plot ?? "",
+      hectaresWorked: matchingLot ? String(matchingLot.hectares) : "",
       chemicals: (plan.chemicals ?? []).map((chemical) => ({
         inventoryItemId: chemical.inventoryItemId ?? "",
         product: chemical.product,
@@ -602,15 +609,21 @@ export function FieldModeApp({ initialMode = "work-order" }: FieldModeAppProps) 
                 <select
                   id="machinery"
                   required
-                  value={workOrderForm.machinery}
-                  onChange={(event) =>
-                    setWorkOrderForm((current) => ({ ...current, machinery: event.target.value }))
-                  }
+                  value={workOrderForm.machineryId || workOrderForm.machinery}
+                  onChange={(event) => {
+                    const selectedId = event.target.value;
+                    const selectedMachinery = machineries.find((item) => item.id === selectedId);
+                    setWorkOrderForm((current) => ({
+                      ...current,
+                      machineryId: selectedId,
+                      machinery: selectedMachinery?.name ?? current.machinery
+                    }));
+                  }}
                   className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
                 >
                   <option value="">Seleccionar maquinaria</option>
                   {machineries.map((machinery) => (
-                    <option key={machinery.id} value={machinery.name}>{machinery.name}</option>
+                    <option key={machinery.id} value={machinery.id}>{machinery.name}</option>
                   ))}
                 </select>
               </Field>
@@ -713,7 +726,7 @@ export function FieldModeApp({ initialMode = "work-order" }: FieldModeAppProps) 
               </Field>
             </div>
 
-            <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-6 space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-700">Productos químicos usados</p>
                 <button

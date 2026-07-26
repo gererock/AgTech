@@ -41,8 +41,10 @@ export async function POST(request: Request) {
             data: {
               id: record.id,
               machinery: record.machinery,
+              machineryId: record.machineryId || null,
               operatorId: record.operatorId || null,
               operatorName: record.operatorName,
+              workOrderPlanId: record.workOrderPlanId || null,
               hectaresWorked: record.hectaresWorked,
               fuelLiters: record.fuelLiters,
               fuelItemId: record.fuelItemId || null,
@@ -93,8 +95,10 @@ export async function POST(request: Request) {
           where: { id: record.id },
           data: {
             machinery: record.machinery,
+            machineryId: record.machineryId || null,
             operatorId: record.operatorId || null,
             operatorName: record.operatorName,
+            workOrderPlanId: record.workOrderPlanId || null,
             hectaresWorked: record.hectaresWorked,
             fuelLiters: record.fuelLiters,
             fuelItemId: record.fuelItemId || null,

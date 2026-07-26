@@ -34,6 +34,7 @@ export const workOrderSyncRecordSchema = z
   .object({
     id: z.string().uuid(),
     machinery: z.string().trim().min(1).max(120),
+    machineryId: optionalUuidSchema,
     operatorId: optionalUuidSchema,
     operatorName: z.string().trim().min(1).max(120),
     workOrderPlanId: optionalUuidSchema,
@@ -77,6 +78,7 @@ export const tripCreateSchema = z.object({
 export const workOrderCreateSchema = z
   .object({
     machinery: z.string().trim().min(1).max(120),
+    machineryId: optionalUuidSchema,
     operatorId: optionalUuidSchema,
     operatorName: z.string().trim().min(1).max(120),
     workOrderPlanId: optionalUuidSchema,

@@ -90,6 +90,7 @@ export function createOfflineWorkOrder(draft: WorkOrderDraft): OfflineWorkOrder 
   return {
     id: createClientId(),
     machinery: draft.machinery.trim(),
+    machineryId: (draft as any).machineryId || null,
     operatorId: draft.operatorId || null,
     operatorName: draft.operatorName.trim(),
     workOrderPlanId: (draft as any).workOrderPlanId || null,

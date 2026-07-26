@@ -30,6 +30,12 @@ type WorkOrderPlanOption = {
   id: string;
   title: string;
   plot: string;
+  chemicals?: Array<{
+    inventoryItemId?: string | null;
+    product: string;
+    quantity: number;
+    unit: string;
+  }>;
 };
 
 type CustomerOption = {
@@ -764,6 +770,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
                       <th className="py-2 pr-3">Operador</th>
                       <th className="py-2 pr-3">Ha</th>
                       <th className="py-2 pr-3">Lote</th>
+                      <th className="py-2 pr-3">Plan</th>
+                      <th className="py-2 pr-3">Químicos</th>
                       <th className="py-2 pr-3">Acciones</th>
                     </tr>
                   </thead>
@@ -774,6 +782,10 @@ export function EntityManager({ kind }: EntityManagerProps) {
                         <td className="py-2 pr-3">{item.operatorName}</td>
                         <td className="py-2 pr-3">{item.hectaresWorked}</td>
                         <td className="py-2 pr-3 text-slate-600">{item.plot}</td>
+                        <td className="py-2 pr-3 text-slate-600">{item.workOrderPlanTitle ?? "Sin plan"}</td>
+                        <td className="py-2 pr-3 text-slate-600">
+                          {item.chemicals?.length ? item.chemicals.map((chemical: any) => chemical.product).join(", ") : "Sin químicos"}
+                        </td>
                         <td className="py-2 pr-3 w-1 whitespace-nowrap">
                           <div className="flex items-center justify-start gap-1.5">
                             <Button type="button" variant="outline" onClick={() => handleEdit(item)}>Editar</Button>
@@ -1690,7 +1702,17 @@ function renderFields(
         </div>
         <div className="space-y-2">
           <Label htmlFor="plot">Lote</Label>
-          <Input id="plot" value={form.plot ?? ""} onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))} />
+          <select
+            id="plot"
+            value={form.plot ?? ""}
+            onChange={(event) => setForm((current) => ({ ...current, plot: event.target.value }))}
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          >
+            <option value="">Seleccionar lote</option>
+            {options.lotOptions?.map((lot) => (
+              <option key={lot.id} value={lot.name}>{lot.name}</option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="assignedOperatorId">Maquinista</Label>
@@ -1858,7 +1880,28 @@ function renderFields(
 
         <div className="space-y-2">
           <Label htmlFor="workOrderPlanId">Orden planificada (opcional)</Label>
-          <select id="workOrderPlanId" value={form.workOrderPlanId ?? ""} onChange={(event) => setForm((current) => ({ ...current, workOrderPlanId: event.target.value }))} className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900">
+          <select
+            id="workOrderPlanId"
+            value={form.workOrderPlanId ?? ""}
+            onChange={(event) => {
+              const selectedPlanId = event.target.value;
+              const selectedPlan = options.workOrderPlanOptions?.find((plan) => plan.id === selectedPlanId);
+
+              setForm((current) => ({
+                ...current,
+                workOrderPlanId: selectedPlanId,
+                chemicals: selectedPlan?.chemicals?.length
+                  ? selectedPlan.chemicals.map((chemical: any) => ({
+                      inventoryItemId: chemical.inventoryItemId ?? "",
+                      product: chemical.product ?? "",
+                      quantity: String(chemical.quantity ?? ""),
+                      unit: chemical.unit ?? "L"
+                    }))
+                  : (current.chemicals ?? []).filter((item: any) => item.product?.trim())
+              }));
+            }}
+            className="flex h-[3.25rem] w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base font-medium text-slate-900"
+          >
             <option value="">Sin plan</option>
             {options.workOrderPlanOptions?.map((plan) => (
               <option key={plan.id} value={plan.id}>{plan.title} · {plan.plot}</option>
