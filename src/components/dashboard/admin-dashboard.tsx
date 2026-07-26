@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
+  Menu,
   RefreshCw,
   Tractor,
   Truck,
@@ -133,7 +134,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 lg:hidden"
               aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
             >
-              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              <Menu className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -141,7 +142,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
               className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 lg:flex"
               aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
             >
-              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              <Menu className="h-5 w-5" />
             </button>
           </div>
           <nav className="grid gap-1 overflow-y-auto p-2 text-sm font-bold text-slate-700 sm:p-3" aria-label="Secciones del panel">
@@ -301,7 +302,7 @@ export function AdminDashboard({ overview, initialView = "summary" }: AdminDashb
                 className="absolute right-3 top-3 z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 lg:hidden"
                 aria-label={isSidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
               >
-                {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                <Menu className="h-5 w-5" />
               </button>
             ) : null}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
