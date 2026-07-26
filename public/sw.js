@@ -1,6 +1,6 @@
-const CACHE_NAME = "agro-operativo-v1";
+const CACHE_NAME = "agtech-v1";
 const APP_SHELL_ROUTES = ["/", "/chofer", "/maquinista", "/manifest.webmanifest", "/icon.svg"];
-const SYNC_TAG = "agro-offline-sync";
+const SYNC_TAG = "agtech-offline-sync";
 const ASSET_EXTENSIONS = /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i;
 const IS_LOCAL_DEV = ["localhost", "127.0.0.1", "0.0.0.0"].includes(self.location.hostname);
 

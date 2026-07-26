@@ -9,7 +9,7 @@ if (-not (Test-Path -LiteralPath $psql)) {
 
 $databaseName = $env:POSTGRES_DB
 if (-not $databaseName) {
-  $databaseName = "agro_operativo"
+  $databaseName = "agtech"
 }
 
 $appUser = $env:POSTGRES_USER

@@ -1,6 +1,6 @@
 {
-  "name": "Agro Operativo",
-  "short_name": "Agro",
+  "name": "agtech",
+  "short_name": "agtech",
   "description": "Carga offline de viajes y partes diarios para equipos de campo.",
   "start_url": "/",
   "scope": "/",

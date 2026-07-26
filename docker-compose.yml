@@ -1,10 +1,10 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: agro-operativo-db
+    container_name: agtech-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-agro_operativo}
+      POSTGRES_DB: ${POSTGRES_DB:-agtech}
       POSTGRES_USER: ${POSTGRES_USER:-agro}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agro}
     ports:
@@ -12,7 +12,7 @@ services:
     volumes:
       - agro_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agro} -d ${POSTGRES_DB:-agro_operativo}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agro} -d ${POSTGRES_DB:-agtech}"]
       interval: 5s
       timeout: 5s
       retries: 10

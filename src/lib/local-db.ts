@@ -34,7 +34,7 @@ class AgroOfflineDatabase extends Dexie {
   workOrders!: Table<OfflineWorkOrder, string>;
 
   constructor() {
-    super("agro-operativo-offline");
+    super("agtech-offline");
 
     this.version(1).stores({
       trips: "id, syncStatus, updatedAt, licensePlate, retryCount",

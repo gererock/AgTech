@@ -5,7 +5,7 @@ import { getDashboardOverview } from "@/lib/dashboard-data";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Panel Administrativo | Agro Operativo",
+  title: "Panel Administrativo | agtech",
   description: "Backoffice AgTech para viajes, partes diarios, costos operativos y auditoria de sincronizacion."
 };
 

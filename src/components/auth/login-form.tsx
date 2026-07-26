@@ -52,7 +52,7 @@ export function LoginForm() {
         {/* Cabecera estructurada con espaciado consistente */}
         <div className="mb-6 space-y-1.5">
           <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-teal-700">
-            Agro Operativo
+            agtech
           </p>
           <h1 className="text-2xl font-black text-slate-950">
             Iniciar sesión

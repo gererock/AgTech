@@ -279,7 +279,7 @@ export function FieldModeApp({ initialMode = "trip" }: FieldModeAppProps) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-extrabold uppercase text-teal-800">Modo campo</p>
-              <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">Agro Operativo</h1>
+              <h1 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">agtech</h1>
             </div>
             <Link
               href="/dashboard"

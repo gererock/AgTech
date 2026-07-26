@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
 const env = { ...process.env };
-const databaseName = env.POSTGRES_DB || 'agro_operativo';
+const databaseName = env.POSTGRES_DB || 'agtech';
 const appUser = env.POSTGRES_USER || 'agro';
 const appPassword = env.POSTGRES_PASSWORD || 'agro';
 const requestedPort = env.POSTGRES_PORT || '5434';
