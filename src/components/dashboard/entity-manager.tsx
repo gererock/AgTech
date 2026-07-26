@@ -95,6 +95,8 @@ export function EntityManager({ kind }: EntityManagerProps) {
   const [filters, setFilters] = useState<FilterState>({ search: "", status: "", type: "", date: "" });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const [restockTarget, setRestockTarget] = useState<{ id: string; label: string } | null>(null);
+  const [restockAmount, setRestockAmount] = useState<string>("");
 
   const loadItems = useCallback(async (currentFilters: FilterState = filters) => {
     setLoading(true);
@@ -367,15 +369,23 @@ export function EntityManager({ kind }: EntityManagerProps) {
     }
   };
 
-  const handleRestock = async (id: string) => {
-    const amount = Number(prompt("Cantidad a reabastecer"));
+  const handleRestock = (id: string) => {
+    const item = inventoryItems.find((i) => i.id === id);
+    setRestockAmount("");
+    setRestockTarget({ id, label: item?.name ?? "este producto" });
+  };
+
+  const performRestock = async () => {
+    if (!restockTarget) return;
+
+    const amount = Number(restockAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setMessage({ type: "error", text: "Cantidad de reabastecimiento inválida" });
       return;
     }
 
     try {
-      const response = await fetch(`/api/admin/inventory/${id}`, {
+      const response = await fetch(`/api/admin/inventory/${restockTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ restockAmount: amount })
@@ -390,6 +400,9 @@ export function EntityManager({ kind }: EntityManagerProps) {
       }
     } catch {
       setMessage({ type: "error", text: "No se pudo reabastecer el producto" });
+    } finally {
+      setRestockTarget(null);
+      setRestockAmount("");
     }
   };
 
@@ -417,6 +430,28 @@ export function EntityManager({ kind }: EntityManagerProps) {
         <div className={`mt-4 rounded-md border px-3 py-2 text-sm ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
           {message.text}
         </div>
+      ) : null}
+
+      {restockTarget ? createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/60 p-4" onClick={() => { setRestockTarget(null); setMessage(null); }}>
+          <div className="mx-2 mt-4 w-full max-w-[min(92vw,28rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.20)]" onClick={(event) => event.stopPropagation()}>
+            <div className="border-b border-slate-200 px-4 py-3 sm:px-6">
+              <h3 className="text-base font-black">Reabastecer producto</h3>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); performRestock(); }} className="space-y-4 px-4 py-5 sm:px-6">
+              <p className="text-sm text-slate-600">Reabastecer <span className="font-semibold text-slate-900">{restockTarget.label}</span></p>
+              <div className="space-y-2">
+                <Label htmlFor="restock-amount">Cantidad</Label>
+                <Input id="restock-amount" type="number" value={restockAmount} onChange={(e) => setRestockAmount(e.target.value)} placeholder="Cantidad a reabastecer" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); performRestock(); } }} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => { setRestockTarget(null); setMessage(null); }}>Cancelar</Button>
+                <Button type="submit" variant="success">Reabastecer</Button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       ) : null}
 
       {deleteTarget ? createPortal(
